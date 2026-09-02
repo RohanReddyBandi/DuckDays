@@ -51,7 +51,9 @@ struct ContentView: View {
                     .presentationDetents([.large])
             case .widget:
                 WidgetSheet(size: $previewSize, event: draft, style: style)
-                    .presentationDetents([.medium, .large])
+                    // An explicit height rather than .medium: the content is a
+                    // known size, and .medium clipped the controls.
+                    .presentationDetents([.height(500), .large])
             case .allDucks:
                 AllDucksSheet(styleID: $styleID, style: style)
                     .presentationDetents([.large])

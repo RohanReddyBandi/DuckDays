@@ -75,6 +75,8 @@ struct WidgetSheet: View {
     let event: CountdownEvent
     let style: DuckStyle
 
+    static let stageHeight: CGFloat = 200
+
     private var aspect: CGFloat {
         switch size {
         case .small: return 1
@@ -86,12 +88,16 @@ struct WidgetSheet: View {
     var body: some View {
         SheetShell(title: "Widget", style: style) {
             VStack(spacing: 22) {
+                // A fixed-height stage. Without it the large preview is taller
+                // than the sheet itself and pushes the size picker off screen —
+                // the controls have to stay put whichever size is selected.
                 CountdownScene(event: event, referenceDate: Date(),
                                size: size, animated: true)
                     .aspectRatio(aspect, contentMode: .fit)
-                    .frame(maxWidth: size == .small ? 190 : .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .frame(maxWidth: .infinity, maxHeight: Self.stageHeight)
+                    .frame(height: Self.stageHeight)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: size)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Chrome.meta("SIZE")

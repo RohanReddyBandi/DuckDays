@@ -15,14 +15,21 @@ struct CountdownScene: View {
     enum Size {
         case small, medium, large
 
-        /// Number, caption, and meta line. Number:caption is 3.3:1 everywhere.
-        var type: (number: CGFloat, caption: CGFloat, meta: CGFloat) {
+        /// Type sizes as a fraction of the scene's height rather than fixed
+        /// points. The artwork already scales with the container, so fixed type
+        /// only composes correctly at exactly one render size — it overflowed
+        /// the moment the scene was drawn as a hero or a sheet thumbnail.
+        /// Number:caption stays 3.3:1 in every size.
+        var typeScale: (number: CGFloat, caption: CGFloat, meta: CGFloat) {
             switch self {
-            case .small: return (33, 10.0, 0)
-            case .medium: return (50, 15.2, 0)
-            case .large: return (64, 19.4, 13)
+            case .small: return (0.209, 0.0633, 0)
+            case .medium: return (0.316, 0.0962, 0)
+            case .large: return (0.181, 0.0548, 0.0367)
             }
         }
+
+        /// Width of the text column, as a fraction of the scene's width.
+        var counterWidth: CGFloat { self == .medium ? 0.497 : 1 }
     }
 
     private var days: Int { event.daysRemaining(from: referenceDate) }
@@ -40,7 +47,7 @@ struct CountdownScene: View {
         DuckPond(style: style, animated: animated, waterLine: 0.80,
                  duckWidth: 0.48, duckCenterX: 0.5, placement: .small) { m in
             VStack(spacing: 0) {
-                counter(unit: m.unit)
+                counter(metrics: m)
                 Spacer(minLength: 0)
             }
             .padding(.top, m.unit * 3)
@@ -53,8 +60,8 @@ struct CountdownScene: View {
                  duckWidth: 0.34, duckCenterX: 0.24, placement: .medium) { m in
             HStack(spacing: 0) {
                 Spacer(minLength: 0)
-                counter(unit: m.unit)
-                    .frame(width: 168)
+                counter(metrics: m)
+                    .frame(width: m.size.width * size.counterWidth)
             }
             // Centre the counter in the sky, not in the whole card — otherwise
             // the caption lands right on the waterline.
@@ -69,7 +76,7 @@ struct CountdownScene: View {
         DuckPond(style: style, animated: animated, waterLine: 0.80,
                  duckWidth: 0.52, duckCenterX: 0.5, placement: .large) { m in
             VStack(spacing: 0) {
-                counter(unit: m.unit)
+                counter(metrics: m)
                 Spacer(minLength: 0)
             }
             .padding(.top, m.unit * 3)
@@ -77,8 +84,11 @@ struct CountdownScene: View {
         }
     }
 
-    private func counter(unit: CGFloat) -> some View {
-        let scale = size.type
+    private func counter(metrics m: PondMetrics) -> some View {
+        let ratio = size.typeScale
+        let h = m.size.height
+        let scale = (number: ratio.number * h, caption: ratio.caption * h,
+                     meta: ratio.meta * h)
         let text = CountdownPhrasing.caption(for: days, title: event.title)
         return VStack(spacing: 0) {
             Text(CountdownPhrasing.headline(for: days))
@@ -104,7 +114,7 @@ struct CountdownScene: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .opacity(0.72)
-                    .padding(.top, unit * 1.6)
+                    .padding(.top, m.unit * 1.6)
             }
         }
         .foregroundStyle(style.inkColor)

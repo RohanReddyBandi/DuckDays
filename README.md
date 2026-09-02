@@ -14,7 +14,7 @@ fronted by a pixel-art rubber duck floating on a pond.
 
 ## The ducks
 
-Twenty-three of them, each a character rather than a colourway: a sprite with its own
+Twenty-two of them, each a character rather than a colourway: a sprite with its own
 accessory, a body and background palette, an ink colour, a font design, uppercase or
 not, and a day or night sky. Pick one in the app; the widget follows.
 
@@ -22,10 +22,10 @@ not, and a day or night sky. Pick one in the app; the widget follows.
 | --- | --- | --- | --- |
 | Ducky — cowlick | Ribbon — bow | Daisy — flower | Frosty — bobble hat |
 | Cozy — scarf | Dapper — top hat | Royal — crown | Birthday — party hat |
-| Angel — halo | Cool — sunglasses | Sprout — sprout | Sporty — visor |
-| Pirate — bandana | Chef — chef hat | Wizard — wizard hat | Scuba — snorkel |
-| Cowboy — cowboy hat | Artist — beret | Mischief — horns | Alien — antennae |
-| Floaty — inner tube | Whirly — propeller | Laurel — laurel | |
+| Angel — halo | Sprout — sprout | Sporty — visor | Pirate — bandana |
+| Chef — chef hat | Wizard — wizard hat | Scuba — snorkel | Cowboy — cowboy hat |
+| Artist — beret | Mischief — horns | Alien — antennae | Floaty — inner tube |
+| Whirly — propeller | Laurel — laurel | | |
 
 Names are display only — `styleID` is the stable key, so renaming a duck never breaks
 a saved countdown. Removing one is safe too: `DuckStyle.named` falls back to Ducky.
@@ -66,11 +66,6 @@ units and snaps positions to them. That is what keeps the 1px outlines at matchi
 visual weight: the duck's outline, the clouds', and the moon's are all literally the
 same thickness.
 
-Type is sized from a small per-size table rather than from the unit, because the unit
-is quantised to whole points and the duck's size and the type's size want different
-steps. What is held constant is the *ratio* — number to caption is 3.3:1 in every
-size — which is what makes the three read as one system.
-
 The overlay closure receives a `PondMetrics` (unit, waterline, size), so callers can
 keep their type clear of the water. That is what stops the medium caption landing on
 the waterline when it wraps to two lines.
@@ -99,9 +94,16 @@ follows whatever iOS applies. Filling to the edge is what removes the mismatch.
 Small, medium, large, plus lock screen rectangular and circular. All three home screen
 sizes are the same design — one centred counter block above a duck on water — rather
 than three separate layouts, and the number-to-caption size ratio is held at 3.3:1
-across all of them. Large adds the date as a third line of the same block (not a
-separate element floating in the water) and gives the duck hero size; small drops the
-clouds.
+across all of them.
+
+Type is sized as a **fraction of the scene's height**, not in fixed points. The artwork
+already scales with its container, so fixed type only composed correctly at exactly one
+render size — it overflowed the moment the same scene was drawn as the app's hero or as
+a thumbnail in the widget sheet. The coefficients are calibrated so that at true widget
+dimensions the result is identical to fixed points — the shipped widget is unchanged.
+
+Large adds the date as a third line of the same block (not a separate element floating
+in the water) and gives the duck hero size; small drops the clouds.
 
 ## Animation
 

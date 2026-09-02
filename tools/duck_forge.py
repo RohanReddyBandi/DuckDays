@@ -245,15 +245,6 @@ def partyhat(cells):
     return cells
 
 
-def sunglasses(cells):
-    lens = rect(12, 8, 18, 11) - {(12, 8), (18, 8), (12, 11), (18, 11)}
-    arm = rect(19, 9, 21, 9)
-    stamp(cells, lens | arm, ACCENT_DARK)
-    for c in [(13, 9), (14, 10)]:
-        cells[c] = ACCENT
-    return cells
-
-
 def sprout(cells):
     stamp(cells, {(15, 3), (15, 4)} | {(13, 2), (14, 2), (13, 1)}
           | {(17, 2), (16, 2), (17, 1)}, ACCENT)
@@ -470,7 +461,6 @@ STYLES = [
     S("royal",    "Royal",     crown,      "F2D91C", "E8621F", "F0389E", "3B1E6B", "6E45A8", "FFD966", "B8860B", "F5E6B8", "serif",      "2A1450", True, upper=True),
     S("bubblegum", "Birthday", partyhat,  "FFA3D4", "F2994A", "E83E8C", "FFE7F5", "FFC7E6", "7EE0E0", "2FB5B5", "A8306B", "rounded",    "F79FD0", False),
     S("cloud",    "Angel",     halo,       "FDFDFD", "F2B04A", "FFA0C0", "9FD4F0", "D9EFFA", "FFE066", "E0A800", "3D6B8A", "default",    "6FB8E0", False),
-    S("cool",     "Cool",      sunglasses, "F2D91C", "E8621F", "F0389E", "2BB5A0", "7FDFCE", "F2F2F2", "1F2933", "0E3B36", "monospaced", "17968A", False, upper=True),
     S("moss",     "Sprout",      sprout,     "CBE86B", "F2994A", "E86A9A", "2F4A2E", "5E8A55", "8FD14F", "3E6B37", "E8F5D0", "rounded",    "203A22", True),
     S("sunny",    "Sporty",     visor,      "FFD93D", "E8621F", "FF7BA9", "58C0EE", "A8E4FB", "FF6B4A", "B83B22", "10394F", "rounded",    "2F9BD1", False),
     S("corsair",  "Pirate",   bandana,    "E3C08A", "D9622E", "E0577E", "16323C", "2F5C63", "D64545", "8C2626", "EAF4F2", "serif",      "0E2229", True, upper=True),
