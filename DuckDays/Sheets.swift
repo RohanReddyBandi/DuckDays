@@ -72,6 +72,7 @@ struct EventEditorSheet: View {
 
 struct WidgetSheet: View {
     @Binding var size: CountdownScene.Size
+    @Binding var motion: Bool
     let event: CountdownEvent
     let style: DuckStyle
 
@@ -92,7 +93,7 @@ struct WidgetSheet: View {
                 // than the sheet itself and pushes the size picker off screen —
                 // the controls have to stay put whichever size is selected.
                 CountdownScene(event: event, referenceDate: Date(),
-                               size: size, animated: true)
+                               size: size, animated: motion)
                     .aspectRatio(aspect, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .frame(maxWidth: .infinity, maxHeight: Self.stageHeight)
@@ -102,6 +103,20 @@ struct WidgetSheet: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Chrome.meta("SIZE")
                     SizePicker(selection: $size, accent: Color(rgb: style.accent))
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle(isOn: $motion) {
+                        Text("Duck motion")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Chrome.ink)
+                    }
+                    .tint(Color(rgb: style.accent))
+
+                    Text("The duck shifts pose about once a minute on the home screen. iOS decides exactly when, and may skip updates to save power.")
+                        .font(.system(size: 13, weight: .regular, design: .rounded))
+                        .foregroundStyle(Chrome.dim)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 VStack(alignment: .leading, spacing: 6) {

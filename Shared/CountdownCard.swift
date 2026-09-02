@@ -11,6 +11,8 @@ struct CountdownScene: View {
     let referenceDate: Date
     var size: Size = .small
     var animated: Bool = false
+    /// Set by the widget from its timeline entry; nil in the app.
+    var phase: Int? = nil
 
     enum Size {
         case small, medium, large
@@ -45,7 +47,7 @@ struct CountdownScene: View {
 
     private var small: some View {
         DuckPond(style: style, animated: animated, waterLine: 0.80,
-                 duckWidth: 0.48, duckCenterX: 0.5, placement: .small) { m in
+                 duckWidth: 0.48, duckCenterX: 0.5, placement: .small, phase: phase) { m in
             VStack(spacing: 0) {
                 counter(metrics: m)
                 Spacer(minLength: 0)
@@ -57,7 +59,7 @@ struct CountdownScene: View {
 
     private var medium: some View {
         DuckPond(style: style, animated: animated, waterLine: 0.76,
-                 duckWidth: 0.34, duckCenterX: 0.24, placement: .medium) { m in
+                 duckWidth: 0.34, duckCenterX: 0.24, placement: .medium, phase: phase) { m in
             HStack(spacing: 0) {
                 Spacer(minLength: 0)
                 counter(metrics: m)
@@ -74,7 +76,7 @@ struct CountdownScene: View {
     /// water — one text group at the top, one duck below it, nothing floating.
     private var large: some View {
         DuckPond(style: style, animated: animated, waterLine: 0.80,
-                 duckWidth: 0.52, duckCenterX: 0.5, placement: .large) { m in
+                 duckWidth: 0.52, duckCenterX: 0.5, placement: .large, phase: phase) { m in
             VStack(spacing: 0) {
                 counter(metrics: m)
                 Spacer(minLength: 0)

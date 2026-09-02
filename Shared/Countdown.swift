@@ -7,11 +7,16 @@ struct CountdownEvent: Codable, Equatable {
     var title: String
     var date: Date
     var styleID: String
+    /// Whether the widget gets a dense timeline so the duck moves. Off means a
+    /// handful of entries a day instead of one every minute.
+    var motion: Bool
 
-    init(title: String, date: Date, styleID: String = DuckStyle.fallback.id) {
+    init(title: String, date: Date, styleID: String = DuckStyle.fallback.id,
+         motion: Bool = true) {
         self.title = title
         self.date = date
         self.styleID = styleID
+        self.motion = motion
     }
 
     /// Tolerates payloads written before styles existed rather than failing to decode.
@@ -21,6 +26,7 @@ struct CountdownEvent: Codable, Equatable {
         date = try c.decode(Date.self, forKey: .date)
         styleID = try c.decodeIfPresent(String.self, forKey: .styleID)
             ?? DuckStyle.fallback.id
+        motion = try c.decodeIfPresent(Bool.self, forKey: .motion) ?? true
     }
 
     var style: DuckStyle { DuckStyle.named(styleID) }

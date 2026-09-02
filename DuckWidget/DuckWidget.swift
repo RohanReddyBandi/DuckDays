@@ -4,6 +4,8 @@ import SwiftUI
 struct DuckEntry: TimelineEntry {
     let date: Date
     let event: CountdownEvent
+    /// Step through the bob. Every entry poses the duck slightly differently.
+    var phase: Int = 0
 }
 
 struct DuckProvider: TimelineProvider {
@@ -15,20 +17,42 @@ struct DuckProvider: TimelineProvider {
         completion(DuckEntry(date: Date(), event: CountdownStore.load()))
     }
 
+    /// A minute apart, for two hours. Stepping through entries the provider
+    /// already supplied does not spend the reload budget — only calling
+    /// `getTimeline` again does — so density here is cheap. One reload every
+    /// two hours is a dozen a day, well inside what WidgetKit allows.
+    private static let motionStep: TimeInterval = 60
+    private static let motionSpan = 120
+
     func getTimeline(in context: Context, completion: @escaping (Timeline<DuckEntry>) -> Void) {
         let event = CountdownStore.load()
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+        let now = Date()
+        let today = calendar.startOfDay(for: now)
 
-        // One entry per midnight for the next week, so the number ticks over on its own
-        // even if the system does not get around to refreshing the timeline.
-        var entries = [DuckEntry(date: Date(), event: event)]
+        var entries: [DuckEntry] = []
+        if event.motion {
+            for step in 0..<Self.motionSpan {
+                entries.append(DuckEntry(
+                    date: now.addingTimeInterval(Double(step) * Self.motionStep),
+                    event: event, phase: step))
+            }
+        } else {
+            entries.append(DuckEntry(date: now, event: event))
+        }
+
+        // One entry per midnight for the next week, so the number ticks over on
+        // its own even if the system is slow to refresh the timeline.
+        let lastMoving = entries.last?.date ?? now
         for offset in 1...7 {
-            guard let midnight = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
+            guard let midnight = calendar.date(byAdding: .day, value: offset, to: today),
+                  midnight > lastMoving else { continue }
             entries.append(DuckEntry(date: midnight, event: event))
         }
 
-        let refresh = calendar.date(byAdding: .day, value: 1, to: today) ?? Date().addingTimeInterval(3600)
+        let refresh = event.motion
+            ? lastMoving
+            : (calendar.date(byAdding: .day, value: 1, to: today) ?? now.addingTimeInterval(3600))
         completion(Timeline(entries: entries, policy: .after(refresh)))
     }
 }
@@ -52,11 +76,11 @@ struct DuckWidgetEntryView: View {
         switch family {
         case .systemLarge:
             framed(CountdownScene(event: entry.event, referenceDate: entry.date,
-                                  size: .large))
+                                  size: .large, phase: entry.phase))
 
         case .systemMedium:
             framed(CountdownScene(event: entry.event, referenceDate: entry.date,
-                                  size: .medium))
+                                  size: .medium, phase: entry.phase))
 
         case .accessoryRectangular:
             HStack(spacing: 6) {
@@ -80,7 +104,7 @@ struct DuckWidgetEntryView: View {
 
         default:
             framed(CountdownScene(event: entry.event, referenceDate: entry.date,
-                                  size: .small))
+                                  size: .small, phase: entry.phase))
         }
     }
 }

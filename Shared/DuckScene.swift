@@ -102,6 +102,9 @@ struct DuckPond<Overlay: View>: View {
     /// How much of the duck sits below the waterline.
     var submersion: CGFloat = 0.12
     var placement: ScenePlacement = .small
+    /// Widget-side motion. Each timeline entry carries a phase, and the pond
+    /// poses itself from it; WidgetKit animates the change between entries.
+    var phase: Int? = nil
     /// Receives the pond's measurements so the caller's type can share the grid
     /// and keep clear of the waterline.
     @ViewBuilder var overlay: (PondMetrics) -> Overlay
@@ -122,7 +125,7 @@ struct DuckPond<Overlay: View>: View {
 
                 water(w: w, h: h, surface: surface, unit: unit)
 
-                DuckFloating(style: style, animated: animated)
+                DuckFloating(style: style, animated: animated, phase: phase)
                     .frame(width: duckW, height: duckH)
                     .position(x: w * duckCenterX,
                               y: surface - duckH / 2 + duckH * submersion)
@@ -168,7 +171,8 @@ struct DuckPond<Overlay: View>: View {
             let grid = spot.kind.grid
             let cw = unit * CGFloat(grid[0].count)
             DriftingCloud(style: style, grid: grid, name: spot.kind.name,
-                          animated: animated, delay: Double(index) * 1.7, unit: unit)
+                          animated: animated, delay: Double(index) * 1.7,
+                          unit: unit, phase: phase, index: index)
                 .frame(width: cw, height: unit * CGFloat(grid.count))
                 .position(x: clamp(w * spot.x, size: cw, limit: w, unit: unit),
                           y: h * spot.y)
@@ -204,28 +208,56 @@ struct DuckPond<Overlay: View>: View {
 extension DuckPond where Overlay == EmptyView {
     init(style: DuckStyle, animated: Bool = false, waterLine: CGFloat = 0.72,
          duckWidth: CGFloat = 0.50, duckCenterX: CGFloat = 0.5,
-         submersion: CGFloat = 0.12, placement: ScenePlacement = .small) {
+         submersion: CGFloat = 0.12, placement: ScenePlacement = .small,
+         phase: Int? = nil) {
         self.init(style: style, animated: animated, waterLine: waterLine,
                   duckWidth: duckWidth, duckCenterX: duckCenterX,
-                  submersion: submersion, placement: placement) { _ in EmptyView() }
+                  submersion: submersion, placement: placement,
+                  phase: phase) { _ in EmptyView() }
     }
 }
 
 // MARK: - moving parts
 //
-// WidgetKit archives a widget's view tree and replays it out of process, so none
-// of this runs there. The animated variants are only ever built by the app.
+// Two different mechanisms. In the app, views animate themselves on a timer.
+// In the widget they cannot — WidgetKit archives the view tree and replays it
+// out of process, with no run loop to drive a repeating animation. What the
+// widget gets instead is a `phase` on each timeline entry: the pose is a pure
+// function of that number, and WidgetKit animates the change as one entry
+// replaces the next.
 
 struct DuckFloating: View {
     let style: DuckStyle
     let animated: Bool
+    var phase: Int? = nil
 
     var body: some View {
         if animated {
             AnimatedDuck(style: style)
+        } else if let phase {
+            PosedDuck(style: style, phase: phase)
         } else {
             PixelDuckView(style: style)
         }
+    }
+}
+
+/// One frame of the bob, chosen by the timeline entry rather than by a running
+/// animation. Nothing here ticks — the movement comes from WidgetKit animating
+/// between two entries that happen to pose the duck differently.
+private struct PosedDuck: View {
+    let style: DuckStyle
+    let phase: Int
+
+    private var t: Double { Double(phase) * 0.7 }
+
+    var body: some View {
+        // No blink here. Entries are a minute apart, so a "blink" would mean
+        // eyes shut for a full minute — that reads as asleep, not as a blink.
+        PixelDuckView(style: style)
+            .rotationEffect(.degrees(sin(t) * 2.0))
+            .offset(y: sin(t + 0.6) * 3)
+            .animation(.easeInOut(duration: 1.6), value: phase)
     }
 }
 
@@ -259,12 +291,24 @@ private struct DriftingCloud: View {
     let animated: Bool
     let delay: Double
     let unit: CGFloat
+    var phase: Int? = nil
+    var index: Int = 0
     @State private var drifted = false
+
+    /// Widget-side drift, posed from the entry's phase.
+    private var posed: CGFloat {
+        guard let phase else { return 0 }
+        // Fast enough that a minute's step moves the cloud at least a whole
+        // pixel; below that it rounds to the same position and never budges.
+        return CGFloat(sin(Double(phase) * 0.4 + Double(index) * 1.3)) * unit * 3
+    }
 
     var body: some View {
         PixelDecorView(grid: grid, name: name, style: style)
             // Drift in whole pixels, so the cloud never lands off the grid.
-            .offset(x: animated && drifted ? unit * 2 : -unit * 2)
+            .offset(x: phase != nil ? posed
+                       : (animated && drifted ? unit * 2 : -unit * 2))
+            .animation(.easeInOut(duration: 2.0), value: phase)
             .onAppear {
                 guard animated else { return }
                 withAnimation(.easeInOut(duration: 9).delay(delay)

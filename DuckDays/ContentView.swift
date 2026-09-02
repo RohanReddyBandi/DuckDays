@@ -6,12 +6,13 @@ struct ContentView: View {
     @State private var date: Date = Date()
     @State private var styleID: String = DuckStyle.fallback.id
     @State private var previewSize: CountdownScene.Size = .small
+    @State private var motion = true
     @State private var sheet: DuckSheet?
     @State private var justSaved = false
 
     private var draft: CountdownEvent {
         CountdownEvent(title: title.isEmpty ? "the big day" : title,
-                       date: date, styleID: styleID)
+                       date: date, styleID: styleID, motion: motion)
     }
 
     private var style: DuckStyle { draft.style }
@@ -50,7 +51,8 @@ struct ContentView: View {
                 EventEditorSheet(title: $title, date: $date, style: style)
                     .presentationDetents([.large])
             case .widget:
-                WidgetSheet(size: $previewSize, event: draft, style: style)
+                WidgetSheet(size: $previewSize, motion: $motion,
+                            event: draft, style: style)
                     // An explicit height rather than .medium: the content is a
                     // known size, and .medium clipped the controls.
                     .presentationDetents([.height(500), .large])
@@ -62,6 +64,7 @@ struct ContentView: View {
         .onChange(of: styleID) { _, _ in persist() }
         .onChange(of: title) { _, _ in persist() }
         .onChange(of: date) { _, _ in persist() }
+        .onChange(of: motion) { _, _ in persist() }
     }
 
     // MARK: screen
@@ -89,7 +92,7 @@ struct ContentView: View {
     private var hero: some View {
         Button { sheet = .widget } label: {
             CountdownScene(event: draft, referenceDate: Date(),
-                           size: previewSize, animated: true)
+                           size: previewSize, animated: motion)
                 .aspectRatio(heroAspect, contentMode: .fit)
                 .frame(maxWidth: previewSize == .small ? 224 : .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -202,6 +205,7 @@ struct ContentView: View {
         title = saved.title
         date = saved.date
         styleID = saved.styleID
+        motion = saved.motion
     }
 
     /// Edits save as they happen, so the button is about adding the widget
