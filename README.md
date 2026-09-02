@@ -176,6 +176,10 @@ Xcode, select each target's **Signing & Capabilities** tab, and set your team. T
 Group needs to exist on your developer account, and free (non-paid) accounts re-sign
 apps every 7 days.
 
+For App Store submission see **[RELEASE.md](RELEASE.md)** — what is already handled in
+the repo (privacy manifest, export compliance, iPhone-only, matching versions) and what
+only an Apple Developer account can do.
+
 ## Regenerating the app icon
 
 The icon comes from the same forge as the sprites, so the two cannot drift:
