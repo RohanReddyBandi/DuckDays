@@ -113,7 +113,7 @@ struct WidgetSheet: View {
                     }
                     .tint(Color(rgb: style.accent))
 
-                    Text("The duck bobs on the home screen, easing to a new pose every few seconds. iOS sets the real pace and will slow it down to save power — a widget cannot animate continuously the way this preview does.")
+                    Text("iOS may slow this down to save energy.")
                         .font(.system(size: 13, weight: .regular, design: .rounded))
                         .foregroundStyle(Chrome.dim)
                         .fixedSize(horizontal: false, vertical: true)
