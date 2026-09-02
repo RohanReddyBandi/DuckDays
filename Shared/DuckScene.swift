@@ -249,15 +249,19 @@ private struct PosedDuck: View {
     let style: DuckStyle
     let phase: Int
 
-    private var t: Double { Double(phase) * 0.7 }
+    /// Step size and amplitude are a pair: too fine and a step rounds to the
+    /// same pixel and nothing appears to move, too coarse and the duck jumps.
+    /// At ~0.5rad a step the bob cycles in about two minutes, and each step is
+    /// a few points of travel eased over 1.5s.
+    private var t: Double { Double(phase) * 0.5 }
 
     var body: some View {
         // No blink here. Entries are a minute apart, so a "blink" would mean
         // eyes shut for a full minute — that reads as asleep, not as a blink.
         PixelDuckView(style: style)
-            .rotationEffect(.degrees(sin(t) * 2.0))
-            .offset(y: sin(t + 0.6) * 3)
-            .animation(.easeInOut(duration: 1.6), value: phase)
+            .rotationEffect(.degrees(sin(t) * 3.0))
+            .offset(y: sin(t + 0.6) * 6)
+            .animation(.easeInOut(duration: 1.5), value: phase)
     }
 }
 

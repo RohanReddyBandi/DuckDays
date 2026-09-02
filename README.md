@@ -107,29 +107,41 @@ in the water) and gives the duck hero size; small drops the clouds.
 
 ## Animation
 
-In the app, the duck bobs and rotates on the water, blinks on a timer (there is a
-second sprite frame for the closed eye), the clouds drift, and the ripples pulse.
+In the app the duck genuinely animates: it bobs and rotates on a timer, blinks (there
+is a second sprite frame for the closed eye), the clouds drift, and the ripples pulse.
 
-**On the home screen the duck moves too**, if Duck motion is on — but by a different
-mechanism, because a widget has no run loop to drive a repeating animation. Instead
-every timeline entry carries a `phase`, the duck's pose is a pure function of it, and
-WidgetKit animates the change as one entry replaces the next.
+**On the home screen the duck bobs too**, if Duck motion is on, but by a different
+mechanism. A widget has no run loop, so it cannot animate itself. What it can do is
+animate the transition between timeline entries. So every entry carries a `phase`, the
+duck's pose is a pure function of it, and WidgetKit eases between poses as one entry
+replaces the next. Entries are 10 seconds apart, an hour at a time, then the timeline
+reloads — 24 reloads a day. Stepping through entries the provider already returned does
+not spend the refresh budget; only calling `getTimeline` again does.
 
-The provider supplies 120 entries a minute apart, then reloads. That is cheap: stepping
-through entries the provider already returned does **not** spend the refresh budget —
-only calling `getTimeline` again does — so this costs about a dozen reloads a day,
-comfortably inside what WidgetKit allows. Turning motion off drops the timeline back to
-one entry plus a midnight each day.
+### What was measured, not assumed
 
-What this is honestly worth: the duck shifts pose roughly once a minute, with a smooth
-transition, and iOS decides exactly when — it can coalesce or skip updates to save
-power. It is movement, not smooth animation. Nothing available to a widget gives you
-smooth animation.
+Screenshotting the simulator home screen and diffing the duck's pixels against an
+untouched wallpaper control:
 
-Two details that fall out of the granularity: the widget duck never blinks (eyes shut
-for a whole minute reads as asleep, not as a blink), and the cloud drift had to be fast
-enough that a minute's step moves it at least a whole pixel, or it rounds to the same
-position and never budges. The small size has no clouds, so only the duck moves there.
+- **Sub-minute entries render.** At 10s apart, every consecutive frame differed.
+- **Intermediate animation frames do not.** With the transition stretched to a 10s
+  linear animation, changes clustered at the entry boundaries with dead zeros between
+  them. The host renders a snapshot per entry; it does not interpolate. This is the
+  hard limit, and it is why the widget cannot look like the in-app animation.
+- **Step size and amplitude are a pair.** Fine steps round to the same pixel and
+  nothing appears to move; coarse steps make the duck jump. ~0.5rad a step over a
+  two-minute cycle, eased over 1.5s, is the compromise.
+
+Two consequences worth knowing:
+
+- **The widget duck does not blink.** A blink needs eyes shut for a fraction of a
+  second. The finest state the widget can hold is one entry, and any pose persists for
+  the whole interval — a 10-second blink reads as asleep.
+- **The rate is a ceiling, not a promise.** All of the above is the simulator, which
+  does not apply a real device's power management. iOS will coalesce these updates on
+  hardware, more so when the screen is off or the widget is not visible.
+
+Motion off drops the timeline back to one entry plus a midnight each day.
 
 ## Running it
 
