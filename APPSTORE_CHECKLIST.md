@@ -1,53 +1,105 @@
 # App Store Submission Checklist
 
-## Prereqs
-- [ ] Apple Developer account active ($99/yr)
-- [ ] Xcode installed
-- [ ] App name checked for App Store collisions
+Duck Days is a **native Xcode project**, not Expo — there is no `app.json` and no
+prebuild step. The Xcode project is the source of truth. Expo-specific steps below are
+marked with their native equivalent.
 
-## Project config
-- [ ] App name set in app.json (or Xcode project)
-- [ ] Bundle identifier set (brand.appname format) — final, can't change later
-- [ ] supportsTablet: false (unless committing to iPad support permanently)
-- [ ] Encryption exemption flag set (usesNonExemptEncryption: false)
-- [ ] Version set to 1.0.0
-- [ ] App icon ready (1024x1024, all sizes)
+Identifiers:
+
+| What | Value |
+| --- | --- |
+| App bundle ID | `com.rohanreddybandi.duckdays` |
+| Widget bundle ID | `com.rohanreddybandi.duckdays.DuckWidget` |
+| App Group | `group.com.rohanreddybandi.duckdays` |
+
+## Prereqs
+- [x] Apple Developer account active ($99/yr)
+- [x] Xcode installed
+- [ ] App name checked for App Store collisions — search "Duck Days" on the App Store.
+      A duplicate name is not fatal but hurts discoverability
+
+## Project config — **all done in the repo**
+- [x] App name set — `INFOPLIST_KEY_CFBundleDisplayName = "Duck Days"` on both targets
+      *(the `app.json` equivalent is the target's build settings)*
+- [x] Bundle identifier set — `com.rohanreddybandi.duckdays`, final, cannot change later
+- [x] supportsTablet: false — `TARGETED_DEVICE_FAMILY = 1`. Layout was never designed
+      for iPad, and claiming it means review on iPad plus iPad screenshots
+- [x] Encryption exemption flag — `INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO`.
+      Accurate: no network or crypto code exists
+- [x] Version set — `1.0` marketing / `1` build. iOS uses two numbers, not Expo's
+      `1.0.0`. Both must match across app **and** widget or upload is rejected
+- [x] App icon — 1024×1024, PNG colour type 2 (**no alpha**, which is an auto-rejection).
+      Xcode generates the smaller sizes from this one
+- [x] **Privacy manifest** — `Shared/PrivacyInfo.xcprivacy`, bundled into both the app
+      and the `.appex`. Required since May 2024; not on the original checklist
+- [x] Release build for arm64 devices succeeds
+- [x] `xcodebuild archive` succeeds with the widget embedded in `PlugIns/`
+
+## Register identifiers — **do this before archiving**
+Not on the original checklist, but this app has a widget and an App Group, which are
+not auto-registered.
+
+[developer.apple.com → Identifiers](https://developer.apple.com/account/resources/identifiers/list)
+- [ ] App ID `com.rohanreddybandi.duckdays` (explicit, not wildcard) — tick **App Groups**
+- [ ] App ID `com.rohanreddybandi.duckdays.DuckWidget` — tick **App Groups**
+- [ ] App Group `group.com.rohanreddybandi.duckdays`
+- [ ] Re-open **each** App ID → App Groups → **Edit** → assign the group → Save
+
+> The last one is the step people miss. Enabling the *capability* is not the same as
+> assigning the *group*. Skip it and everything builds, but the widget silently shows
+> the placeholder duck because the shared container never resolves.
 
 ## Build
-- [ ] `npx expo prebuild --platform ios --clean`
-- [ ] Open ios/ folder in Xcode
-- [ ] Sign in to Apple Developer account in Xcode
-- [ ] Signing & Capabilities: automatic signing + correct team (all targets incl. widgets)
-- [ ] Select "Any iOS Device (arm64)" target
-- [ ] Product > Archive
-- [ ] Distribute App > App Store Connect > register bundle ID
+- [ ] ~~`npx expo prebuild --platform ios --clean`~~ — N/A, native project
+- [ ] ~~Open `ios/` folder in Xcode~~ → `open DuckDays.xcodeproj`
+- [ ] Sign in to Apple Developer account in Xcode (Settings → Accounts)
+- [ ] Signing & Capabilities: automatic signing + correct team — **both targets**,
+      DuckDays and DuckWidget
+- [ ] Confirm the App Group row shows the group ticked on both targets
+- [ ] **Run on a real device first.** The simulator models neither the widget refresh
+      budget nor the real App Group container. Add all three widget sizes, confirm the
+      count matches the app, leave it a few minutes and confirm the duck moves
+- [ ] Select "Any iOS Device (arm64)"
+- [ ] Product → Archive
+- [ ] Distribute App → App Store Connect → Upload
 
 ## TestFlight
 - [ ] Install TestFlight on phone
-- [ ] Wait for build to process in App Store Connect
+- [ ] Wait for build to process in App Store Connect (15–60 min)
 - [ ] Create internal testing group (auto-distribution on)
 - [ ] Add self as tester, accept invite, install, verify build works
+- [ ] Specifically re-verify the **widget** via TestFlight — it is a separate binary and
+      the App Group is the thing most likely to be misconfigured
 
 ## Store listing
-- [ ] Screenshots (real device, all required sizes)
+- [ ] Screenshots — 6.9″ iPhone (1320×2868) required. Suggested: hero countdown, the
+      "See all" duck grid, widgets on a home screen, the widget size sheet
 - [ ] Promotional text
-- [ ] Description
-- [ ] Keywords
-- [ ] Support URL
-- [ ] Privacy policy URL
-- [ ] Copyright line
+- [ ] Description — what it does, the 22 ducks, the three widget sizes
+- [ ] Keywords (100 chars, comma-separated, no spaces after commas)
+- [ ] Support URL — the repo's issues page works
+- [ ] Privacy policy URL — publish `PRIVACY.md` via GitHub Pages
+- [ ] Copyright line — e.g. `2026 Rohan Reddy Bandi`
 - [ ] Select build to submit
-- [ ] App Review info (login creds if auth required)
+- [ ] App Review info — no login needed, the app has no accounts
 - [ ] Auto-release vs manual release choice
 
 ## App info / privacy / pricing
-- [ ] Subtitle + category (up to 2)
-- [ ] Content rights declaration
-- [ ] Age rating questionnaire
-- [ ] App Privacy data collection declaration
+- [ ] Subtitle (30 chars) + category — Utilities fits; Lifestyle also defensible
+- [ ] Content rights declaration — the artwork is generated by `tools/duck_forge.py`,
+      so it is all original; answer "no third-party content"
+- [ ] Age rating questionnaire — this app is 4+
+- [ ] App Privacy data collection declaration — **Data Not Collected**, matching the
+      privacy manifest
 - [ ] Price tier or free
 - [ ] Country availability
 
 ## Submit
 - [ ] Add for Review
 - [ ] Resolve any flagged missing fields
+
+---
+
+## Bumping a release later
+`MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` each appear in **four** build
+configurations (Debug + Release × two targets). Keep all four in step.

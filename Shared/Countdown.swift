@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-let duckAppGroupID = "group.com.rohan.duckdays"
+let duckAppGroupID = "group.com.rohanreddybandi.duckdays"
 
 struct CountdownEvent: Codable, Equatable {
     var title: String

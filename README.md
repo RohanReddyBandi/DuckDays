@@ -161,7 +161,7 @@ search for **Duck Days**, and add it.
 ## How the app and widget share data
 
 The app writes a JSON-encoded `CountdownEvent` into `UserDefaults` for the App Group
-`group.com.rohan.duckdays`; the widget reads it back and calls
+`group.com.rohanreddybandi.duckdays`; the widget reads it back and calls
 `WidgetCenter.shared.reloadAllTimelines()` on save. If you change the bundle identifier,
 change the group ID in three places: `Shared/Countdown.swift`,
 `DuckDays/DuckDays.entitlements`, and `DuckWidget/DuckWidget.entitlements`.
@@ -176,9 +176,7 @@ Xcode, select each target's **Signing & Capabilities** tab, and set your team. T
 Group needs to exist on your developer account, and free (non-paid) accounts re-sign
 apps every 7 days.
 
-For App Store submission see **[RELEASE.md](RELEASE.md)** — what is already handled in
-the repo (privacy manifest, export compliance, iPhone-only, matching versions) and what
-only an Apple Developer account can do.
+For App Store submission see **[APPSTORE_CHECKLIST.md](APPSTORE_CHECKLIST.md)**.
 
 ## Regenerating the app icon
 
