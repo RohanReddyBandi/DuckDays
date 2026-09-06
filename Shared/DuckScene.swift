@@ -41,32 +41,41 @@ struct ScenePlacement {
                 StarSpot(x: 0.16, y: 0.62),
                 StarSpot(x: 0.93, y: 0.70)])
 
+    /// Medium's headline is "12 Days", not "12" — roughly four times the width —
+    /// so the counter now owns the whole right half and the sun cannot sit in
+    /// the corner it used to. It moves left, above the duck, and the clouds go
+    /// the way small's did: there is one good place left and the sun has it.
     static let medium = ScenePlacement(
-        sun: CGPoint(x: 0.90, y: 0.20),
-        clouds: [CloudSpot(x: 0.11, y: 0.17, kind: .small)],
-        stars: [StarSpot(x: 0.07, y: 0.40, big: true),
-                StarSpot(x: 0.13, y: 0.52),
-                StarSpot(x: 0.055, y: 0.62),
-                StarSpot(x: 0.97, y: 0.46)])
+        sun: CGPoint(x: 0.095, y: 0.17),
+        clouds: [],
+        stars: [StarSpot(x: 0.515, y: 0.125),
+                StarSpot(x: 0.595, y: 0.085, big: true),
+                StarSpot(x: 0.86, y: 0.11),
+                StarSpot(x: 0.945, y: 0.07),
+                StarSpot(x: 0.06, y: 0.57, big: true),
+                StarSpot(x: 0.05, y: 0.69)])
 
-    // Clustered, not evenly spread: a tight group upper-left, a loose pair right,
-    // and a couple of strays. An even grid of stars reads as a pattern.
-    // The counter block runs number → caption → date, and the caption goes
-    // nearly edge to edge. So the clouds stay out of that band entirely: one
-    // high beside the number, two low flanking the duck.
+    // Same story on large, in the other axis: number → caption → date now runs
+    // nearly the full width, so the whole top third is type and the weather sits
+    // below it, in the two strips either side of the duck. Sun high right, one
+    // cloud low right, mid and small clouds left — a ring around the duck rather
+    // than anything competing with the counter.
+    //
+    // Stars are clustered, not evenly spread — an even grid reads as a pattern
+    // rather than a sky. They keep to the outer margins the centred type never
+    // reaches, and to the gap under the caption.
     static let large = ScenePlacement(
-        sun: CGPoint(x: 0.86, y: 0.10),
-        clouds: [CloudSpot(x: 0.16, y: 0.09, kind: .long),
-                 CloudSpot(x: 0.90, y: 0.52, kind: .small),
-                 CloudSpot(x: 0.08, y: 0.62, kind: .small)],
-        stars: [StarSpot(x: 0.05, y: 0.20, big: true),
-                StarSpot(x: 0.10, y: 0.26),
-                StarSpot(x: 0.145, y: 0.185),
-                StarSpot(x: 0.955, y: 0.24, big: true),
-                StarSpot(x: 0.905, y: 0.30),
-                StarSpot(x: 0.045, y: 0.44),
-                StarSpot(x: 0.955, y: 0.68),
-                StarSpot(x: 0.075, y: 0.76, big: true)])
+        sun: CGPoint(x: 0.88, y: 0.545),
+        clouds: [CloudSpot(x: 0.14, y: 0.53, kind: .mid),
+                 CloudSpot(x: 0.10, y: 0.70, kind: .small),
+                 CloudSpot(x: 0.87, y: 0.72, kind: .small)],
+        stars: [StarSpot(x: 0.032, y: 0.068, big: true),
+                StarSpot(x: 0.072, y: 0.155),
+                StarSpot(x: 0.028, y: 0.235),
+                StarSpot(x: 0.962, y: 0.078, big: true),
+                StarSpot(x: 0.925, y: 0.17),
+                StarSpot(x: 0.062, y: 0.355),
+                StarSpot(x: 0.945, y: 0.305)])
 
     /// Used by the style swatches, where there is no text to avoid.
     static let swatch = ScenePlacement(
@@ -250,18 +259,21 @@ private struct PosedDuck: View {
     let phase: Int
 
     /// Step size and amplitude are a pair: too fine and a step rounds to the
-    /// same pixel and nothing appears to move, too coarse and the duck jumps.
-    /// At ~0.5rad a step the bob cycles in about two minutes, and each step is
-    /// a few points of travel eased over 1.5s.
+    /// same pixel and nothing appears to move, too coarse and the duck jumps
+    /// between poses instead of travelling between them. At 0.5rad a step there
+    /// are ~12 poses to a cycle, which is about the fewest that still reads as
+    /// bobbing; with entries 3s apart that puts the cycle near 40 seconds.
     private var t: Double { Double(phase) * 0.5 }
 
     var body: some View {
-        // No blink here. Entries are a minute apart, so a "blink" would mean
-        // eyes shut for a full minute — that reads as asleep, not as a blink.
+        // No blink here. A pose is held for a whole entry, so even at 3s a
+        // "blink" means eyes shut for three seconds — asleep, not blinking.
         PixelDuckView(style: style)
             .rotationEffect(.degrees(sin(t) * 3.0))
             .offset(y: sin(t + 0.6) * 6)
-            .animation(.easeInOut(duration: 1.5), value: phase)
+            // Just under the entry interval, so wherever a transition does get
+            // drawn the duck is still moving when the next pose arrives.
+            .animation(.easeInOut(duration: 2.4), value: phase)
     }
 }
 
@@ -302,8 +314,9 @@ private struct DriftingCloud: View {
     /// Widget-side drift, posed from the entry's phase.
     private var posed: CGFloat {
         guard let phase else { return 0 }
-        // Fast enough that a minute's step moves the cloud at least a whole
-        // pixel; below that it rounds to the same position and never budges.
+        // 0.4rad against a 3-unit swing moves the cloud at least a whole pixel
+        // per step; below that it rounds to the same position and never budges.
+        // Slower than the duck on purpose — weather should lag the character.
         return CGFloat(sin(Double(phase) * 0.4 + Double(index) * 1.3)) * unit * 3
     }
 
@@ -312,7 +325,7 @@ private struct DriftingCloud: View {
             // Drift in whole pixels, so the cloud never lands off the grid.
             .offset(x: phase != nil ? posed
                        : (animated && drifted ? unit * 2 : -unit * 2))
-            .animation(.easeInOut(duration: 2.0), value: phase)
+            .animation(.easeInOut(duration: 2.4), value: phase)
             .onAppear {
                 guard animated else { return }
                 withAnimation(.easeInOut(duration: 9).delay(delay)

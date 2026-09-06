@@ -6,6 +6,10 @@ struct ContentView: View {
     @State private var date: Date = Date()
     @State private var styleID: String = DuckStyle.fallback.id
     @State private var previewSize: CountdownScene.Size = .small
+    /// Widget-only. The duck on this screen always animates — the app has a run
+    /// loop and a bobbing sprite costs it nothing, so there is nothing here for
+    /// the setting to save. It travels in the event because the widget, which
+    /// is the thing it governs, reads its settings from there.
     @State private var motion = true
     @State private var sheet: DuckSheet?
     @State private var justSaved = false
@@ -92,7 +96,7 @@ struct ContentView: View {
     private var hero: some View {
         Button { sheet = .widget } label: {
             CountdownScene(event: draft, referenceDate: Date(),
-                           size: previewSize, animated: motion)
+                           size: previewSize, animated: true)
                 .aspectRatio(heroAspect, contentMode: .fit)
                 .frame(maxWidth: previewSize == .small ? 224 : .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))

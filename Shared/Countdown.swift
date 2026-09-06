@@ -7,8 +7,10 @@ struct CountdownEvent: Codable, Equatable {
     var title: String
     var date: Date
     var styleID: String
-    /// Whether the widget gets a dense timeline so the duck moves. Off means a
-    /// handful of entries a day instead of one every minute.
+    /// Whether the **widget** gets a dense timeline so the duck moves. Off means
+    /// a handful of entries a day instead of one every few seconds. It says
+    /// nothing about the app, where the duck always animates — the app has a run
+    /// loop and animating costs it nothing worth saving.
     var motion: Bool
 
     init(title: String, date: Date, styleID: String = DuckStyle.fallback.id,
@@ -68,23 +70,28 @@ enum CountdownStore {
     }
 }
 
-/// The phrasing under the big number, which changes as the date passes.
+/// The two lines of the counter, which change as the date passes.
+///
+/// The split is count-and-unit on top, direction-and-subject underneath:
+/// "12 Days" / "until graduation". The unit belongs with the number because
+/// "12 Days" is one phrase read at one size; only the event is secondary.
 enum CountdownPhrasing {
+    /// The big line. Set at the headline size in full — the word is part of
+    /// the number, not a caption for it.
     static func headline(for days: Int) -> String {
-        switch days {
+        switch abs(days) {
         case 0: return "TODAY"
-        case 1: return "1"
-        default: return "\(abs(days))"
+        case 1: return "1 Day"
+        default: return "\(abs(days)) Days"
         }
     }
 
+    /// The small line under it.
     static func caption(for days: Int, title: String) -> String {
         switch days {
-        case 0: return "It's \(title) day!"
-        case 1: return "day until \(title)"
-        case let d where d > 1: return "days until \(title)"
-        case -1: return "day since \(title)"
-        default: return "days since \(title)"
+        case 0: return "it's \(title)!"
+        case let d where d > 0: return "until \(title)"
+        default: return "since \(title)"
         }
     }
 

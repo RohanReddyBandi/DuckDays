@@ -92,8 +92,10 @@ struct WidgetSheet: View {
                 // A fixed-height stage. Without it the large preview is taller
                 // than the sheet itself and pushes the size picker off screen —
                 // the controls have to stay put whichever size is selected.
+                // Always animated, whatever the toggle says. This is the app,
+                // and the toggle governs the widget.
                 CountdownScene(event: event, referenceDate: Date(),
-                               size: size, animated: motion)
+                               size: size, animated: true)
                     .aspectRatio(aspect, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .frame(maxWidth: .infinity, maxHeight: Self.stageHeight)
@@ -106,8 +108,11 @@ struct WidgetSheet: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
+                    // Named for what it actually governs. Calling it "Duck
+                    // motion" while the duck above it keeps bobbing would read
+                    // as a broken switch.
                     Toggle(isOn: $motion) {
-                        Text("Duck motion")
+                        Text("Widget motion")
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(Chrome.ink)
                     }

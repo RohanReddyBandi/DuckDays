@@ -17,16 +17,19 @@ struct DuckProvider: TimelineProvider {
         completion(DuckEntry(date: Date(), event: CountdownStore.load()))
     }
 
-    /// Ten seconds apart, for an hour. Stepping through entries the provider
+    /// Three seconds apart, for an hour. Stepping through entries the provider
     /// already supplied does not spend the reload budget — only calling
-    /// `getTimeline` again does — so density here is cheap: one reload an hour
-    /// is 24 a day, well inside what WidgetKit allows.
+    /// `getTimeline` again does — so density is bought with entry count, not
+    /// with reloads. Keeping the span at an hour holds the cost at 24 reloads a
+    /// day however fine the step gets; only `motionSpan × motionStep` may not
+    /// shrink. Entries are a date, a small struct and an Int, so 1200 of them
+    /// is a few hundred KB across the archive.
     ///
     /// Measured on the simulator, every one of these renders. A real device
     /// applies power management on top and will coalesce them, so treat this as
     /// the ceiling rather than the guaranteed rate.
-    private static let motionStep: TimeInterval = 10
-    private static let motionSpan = 360
+    private static let motionStep: TimeInterval = 3
+    private static let motionSpan = 1200
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<DuckEntry>) -> Void) {
         let event = CountdownStore.load()

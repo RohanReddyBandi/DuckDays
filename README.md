@@ -70,10 +70,18 @@ The overlay closure receives a `PondMetrics` (unit, waterline, size), so callers
 keep their type clear of the water. That is what stops the medium caption landing on
 the waterline when it wraps to two lines.
 
-`ScenePlacement` holds the per-size furniture positions. The countdown number sits
+`ScenePlacement` holds the per-size furniture positions. The countdown block sits
 somewhere different in each size and the scenery has to dodge it, so placement is
-explicit rather than computed. Small drops clouds entirely — at 158pt there is not
-room for the duck, the counter and weather without everything competing.
+explicit rather than computed. Small and medium drop clouds entirely — at 158pt tall
+there is not room for the duck, the counter and weather without everything competing.
+
+The headline reads "12 Days", not "12", which is roughly four times the width, and
+that reshaped every placement. Medium's counter now owns the whole right half, so the
+sun moved left and above the duck. Large's counter runs nearly the full width, so the
+whole top third is type and the weather sits in the two strips either side of the
+duck. Large also carries wider horizontal padding than the other sizes: "365 Days" in
+one of the monospaced styles is the widest the headline ever gets, and the padding
+reserves the corridors the corner stars live in rather than letting type run into them.
 
 Two details worth keeping: star positions are **clustered**, not spread evenly, because
 an even spread reads as a repeating pattern rather than a sky; and there are three
@@ -96,6 +104,13 @@ sizes are the same design — one centred counter block above a duck on water �
 than three separate layouts, and the number-to-caption size ratio is held at 3.3:1
 across all of them.
 
+The counter splits count-and-unit from direction-and-subject: **"12 Days"** at the
+headline size, "until graduation" underneath. The unit belongs with the number because
+"12 Days" is one phrase read at one size — a bare "12" with "days until graduation"
+below it demotes the word that makes the number mean anything. The headline is one
+line and scales itself down when the count runs to three digits, so there is no
+per-case size fudging.
+
 Type is sized as a **fraction of the scene's height**, not in fixed points. The artwork
 already scales with its container, so fixed type only composed correctly at exactly one
 render size — it overflowed the moment the same scene was drawn as the app's hero or as
@@ -107,36 +122,49 @@ in the water) and gives the duck hero size; small drops the clouds.
 
 ## Animation
 
-In the app the duck genuinely animates: it bobs and rotates on a timer, blinks (there
+In the app the duck **always** animates: it bobs and rotates on a timer, blinks (there
 is a second sprite frame for the closed eye), the clouds drift, and the ripples pulse.
+The Widget motion switch does not touch any of this. The app has a run loop and a
+bobbing sprite costs it nothing worth saving, so there is nothing on this side for the
+setting to turn off — and a switch that stilled the duck you are looking at while
+claiming to be about the widget would just read as broken.
 
-**On the home screen the duck bobs too**, if Duck motion is on, but by a different
+**On the home screen the duck bobs too**, if Widget motion is on, but by a different
 mechanism. A widget has no run loop, so it cannot animate itself. What it can do is
 animate the transition between timeline entries. So every entry carries a `phase`, the
 duck's pose is a pure function of it, and WidgetKit eases between poses as one entry
-replaces the next. Entries are 10 seconds apart, an hour at a time, then the timeline
+replaces the next. Entries are 3 seconds apart, an hour at a time, then the timeline
 reloads — 24 reloads a day. Stepping through entries the provider already returned does
-not spend the refresh budget; only calling `getTimeline` again does.
+not spend the refresh budget; only calling `getTimeline` again does, so density is
+bought with entry count rather than with reloads. That is why the span stays at an
+hour however fine the step gets: `motionSpan × motionStep` is the number that must not
+shrink.
 
 ### What was measured, not assumed
 
 Screenshotting the simulator home screen and diffing the duck's pixels against an
 untouched wallpaper control:
 
+- **Three-second entries render, and a 1200-entry timeline holds.** Eight frames 3s
+  apart: every consecutive pair changed in the duck's band (4.8%–19.7%) while the
+  wallpaper control read 0.00% every time. No crash, no fall back to the placeholder.
 - **Sub-minute entries render.** At 10s apart, every consecutive frame differed.
 - **Intermediate animation frames do not.** With the transition stretched to a 10s
   linear animation, changes clustered at the entry boundaries with dead zeros between
   them. The host renders a snapshot per entry; it does not interpolate. This is the
   hard limit, and it is why the widget cannot look like the in-app animation.
 - **Step size and amplitude are a pair.** Fine steps round to the same pixel and
-  nothing appears to move; coarse steps make the duck jump. ~0.5rad a step over a
-  two-minute cycle, eased over 1.5s, is the compromise.
+  nothing appears to move; coarse steps make the duck jump between poses instead of
+  travelling between them. 0.5rad a step is about twelve poses to a cycle, the fewest
+  that still reads as bobbing, which at 3s entries puts the cycle near 40 seconds.
+  Because the host does not interpolate, smoothness comes from entry density, not from
+  animation duration.
 
 Two consequences worth knowing:
 
 - **The widget duck does not blink.** A blink needs eyes shut for a fraction of a
   second. The finest state the widget can hold is one entry, and any pose persists for
-  the whole interval — a 10-second blink reads as asleep.
+  the whole interval — even a 3-second blink reads as asleep.
 - **The rate is a ceiling, not a promise.** All of the above is the simulator, which
   does not apply a real device's power management. iOS will coalesce these updates on
   hardware, more so when the screen is off or the widget is not visible.

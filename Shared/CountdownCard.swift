@@ -31,7 +31,10 @@ struct CountdownScene: View {
         }
 
         /// Width of the text column, as a fraction of the scene's width.
-        var counterWidth: CGFloat { self == .medium ? 0.497 : 1 }
+        /// Medium's column runs from the duck's right edge to the trailing
+        /// padding — the headline carries a word now, so it needs every point
+        /// of that rather than a flat half.
+        var counterWidth: CGFloat { self == .medium ? 0.55 : 1 }
     }
 
     private var days: Int { event.daysRemaining(from: referenceDate) }
@@ -82,7 +85,12 @@ struct CountdownScene: View {
                 Spacer(minLength: 0)
             }
             .padding(.top, m.unit * 3)
-            .padding(.horizontal, m.unit * 2)
+            // Wider than the other sizes on purpose. "365 Days" set in one of
+            // the monospaced styles is the widest the headline ever gets, and
+            // at m.unit * 2 it ran the full width and straight through the star
+            // clusters in the corners. Seven units reserves those corridors;
+            // the headline scales itself down into what is left.
+            .padding(.horizontal, m.unit * 7)
         }
     }
 
@@ -93,9 +101,12 @@ struct CountdownScene: View {
                      meta: ratio.meta * h)
         let text = CountdownPhrasing.caption(for: days, title: event.title)
         return VStack(spacing: 0) {
+            // "12 Days" — count and unit are one phrase at one size. The word
+            // is what makes the number mean something, so it is not demoted to
+            // the caption. No per-case size fudging: the headline is one line
+            // and scales itself down when the count runs to three digits.
             Text(CountdownPhrasing.headline(for: days))
-                .font(.system(size: days == 0 ? scale.number * 0.7 : scale.number,
-                              weight: .heavy,
+                .font(.system(size: scale.number, weight: .heavy,
                               design: style.font.design))
                 .minimumScaleFactor(0.4)
                 .lineLimit(1)
