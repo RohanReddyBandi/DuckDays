@@ -71,14 +71,28 @@ not auto-registered.
 - [ ] Specifically re-verify the **widget** via TestFlight — it is a separate binary and
       the App Group is the thing most likely to be misconfigured
 
+## Publish the support site — **needed before the listing**
+App Store Connect requires a working support URL and a privacy policy URL, and it
+checks them. Both pages are written and live in `docs/`; they just need serving.
+
+[github.com/RohanReddyBandi/DuckDays/settings/pages](https://github.com/RohanReddyBandi/DuckDays/settings/pages)
+- [ ] Source → **Deploy from a branch**, branch **main**, folder **/docs** → Save
+- [ ] Wait ~1 minute, then confirm both pages load:
+      - `https://rohanreddybandi.github.io/DuckDays/`
+      - `https://rohanreddybandi.github.io/DuckDays/privacy.html`
+
+> Serving from `/docs` on `main` rather than a `gh-pages` branch, so the site is
+> versioned with the app that it documents. `docs/.nojekyll` is there to stop
+> GitHub running the pages through Jekyll — they are plain HTML.
+
 ## Store listing
 - [ ] Screenshots — 6.9″ iPhone (1320×2868) required. Suggested: hero countdown, the
       "See all" duck grid, widgets on a home screen, the widget size sheet
 - [ ] Promotional text
 - [ ] Description — what it does, the 22 ducks, the three widget sizes
 - [ ] Keywords (100 chars, comma-separated, no spaces after commas)
-- [ ] Support URL — the repo's issues page works
-- [ ] Privacy policy URL — publish `PRIVACY.md` via GitHub Pages
+- [ ] Support URL — `https://rohanreddybandi.github.io/DuckDays/`
+- [ ] Privacy policy URL — `https://rohanreddybandi.github.io/DuckDays/privacy.html`
 - [ ] Copyright line — e.g. `2026 Rohan Reddy Bandi`
 - [ ] Select build to submit
 - [ ] App Review info — no login needed, the app has no accounts

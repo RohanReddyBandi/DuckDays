@@ -10,6 +10,7 @@ fronted by a pixel-art rubber duck floating on a pond.
 | `DuckDays/` | The app target — edit the title and date, preview the widget |
 | `DuckWidget/` | The WidgetKit extension |
 | `Shared/` | Code compiled into both targets |
+| `docs/` | The support site, served by GitHub Pages |
 | `DuckDays.xcodeproj` | Hand-written project file (no XcodeGen/Tuist needed) |
 
 ## The ducks
@@ -205,6 +206,28 @@ Group needs to exist on your developer account, and free (non-paid) accounts re-
 apps every 7 days.
 
 For App Store submission see **[APPSTORE_CHECKLIST.md](APPSTORE_CHECKLIST.md)**.
+
+## The support site
+
+`docs/` is the App Store support URL and privacy policy URL, served by GitHub Pages
+from `main` → `/docs`. Two static pages, no build step.
+
+The ducks on it are **generated from the app's own style table**, so the website
+cannot show art the app does not have:
+
+```bash
+python3 tools/duck_svg.py    # rewrite docs/ducks/*.svg and skies.css
+```
+
+It reads `Shared/DuckStyles+Generated.swift` and never writes to it. Run it after
+`duck_forge.py swift`, never instead of it. Pixels become run-merged `<rect>`s, so
+the ducks stay crisp at any size and each card gets that duck's own sky.
+
+One deliberate difference from the app: the reflection pixels (`g`, water) are
+dropped, because there is no pond on the website for a duck to be reflected in.
+
+The privacy policy lives at `docs/privacy.html` and nowhere else — a second copy
+in the repo would only drift from the one people actually read.
 
 ## Regenerating the app icon
 
