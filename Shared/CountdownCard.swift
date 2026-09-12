@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 /// The full countdown scene, shared by the widget and by the preview inside the app
 /// so what you see while picking a style is exactly what lands on the home screen.
@@ -37,15 +38,88 @@ struct CountdownScene: View {
         var counterWidth: CGFloat { self == .medium ? 0.55 : 1 }
     }
 
+    /// `.fullColor` everywhere except a tinted or clear home screen.
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
     private var days: Int { event.daysRemaining(from: referenceDate) }
     private var style: DuckStyle { event.style }
+    private var captionText: String {
+        let text = CountdownPhrasing.caption(for: days, title: event.title)
+        return style.uppercaseCaption ? text.uppercased() : text
+    }
 
     var body: some View {
+        if renderingMode == .fullColor {
+            pond
+        } else {
+            tinted
+        }
+    }
+
+    @ViewBuilder
+    private var pond: some View {
         switch size {
         case .small: small
         case .medium: medium
         case .large: large
         }
+    }
+
+    // MARK: - tinted and clear home screens
+    //
+    // Those modes do not draw the widget: they derive a mask from its alpha and
+    // fill it with the user's tint. The pond is all opaque rectangles — sky,
+    // water, ripples — so the mask comes out solid and the widget renders as one
+    // white slab with the duck invisible inside it.
+    //
+    // So there is no pond here at all. What survives the pass legibly is type,
+    // which the system tints, and a sprite that has opted out of it via
+    // `fullColorWhenTinted()`. Everything else would only add to the slab.
+
+    private var tinted: some View {
+        GeometryReader { proxy in
+            let w = proxy.size.width
+            let h = proxy.size.height
+            let ratio = size.typeScale
+
+            let type = VStack(spacing: h * 0.01) {
+                Text(CountdownPhrasing.headline(for: days))
+                    .font(.system(size: ratio.number * h, weight: .heavy,
+                                  design: style.font.design))
+                    .minimumScaleFactor(0.4)
+                    .lineLimit(1)
+                    // The count goes in the accent group, so the user's tint
+                    // puts its emphasis where the full-colour scene puts size.
+                    .widgetAccentable()
+
+                Text(captionText)
+                    .font(.system(size: ratio.caption * h, weight: .semibold,
+                                  design: style.font.design))
+                    .tracking(style.uppercaseCaption ? 0.6 : 0)
+                    .minimumScaleFactor(0.55)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+
+            Group {
+                if size == .medium {
+                    HStack(spacing: w * 0.045) {
+                        PixelDuckView(style: style).frame(width: w * 0.28)
+                        type
+                    }
+                } else {
+                    VStack(spacing: h * 0.045) {
+                        type
+                        PixelDuckView(style: style)
+                            .frame(width: w * (size == .large ? 0.46 : 0.54))
+                    }
+                }
+            }
+            .frame(width: w, height: h)
+        }
+        // No explicit ink colour: the system is tinting this, and a hardcoded
+        // colour would either be overridden or fight the wallpaper.
+        .padding(size == .small ? 8 : 12)
     }
 
     private var small: some View {

@@ -66,17 +66,30 @@ struct DuckProvider: TimelineProvider {
 
 struct DuckWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetRenderingMode) private var renderingMode
     var entry: DuckEntry
 
     private var style: DuckStyle { entry.event.style }
 
     /// The only chrome: one hairline of the same near-black the sprites are
     /// outlined with, so the widget edge reads as part of the pixel art.
+    ///
+    /// Both the border and the sky are dropped on a tinted or clear home
+    /// screen. The sky is an opaque rectangle, and an opaque rectangle is
+    /// exactly what those modes turn into a solid slab of tint; the border
+    /// would then be a bright ring drawn around it. Handing back `Color.clear`
+    /// lets the wallpaper through, which is what the mode is for.
     private func framed<V: View>(_ content: V) -> some View {
         content
-            .overlay(ContainerRelativeShape()
-                .strokeBorder(Color(rgb: 0x17171A).opacity(0.85), lineWidth: 2))
-            .containerBackground(for: .widget) { style.sky }
+            .overlay {
+                if renderingMode == .fullColor {
+                    ContainerRelativeShape()
+                        .strokeBorder(Color(rgb: 0x17171A).opacity(0.85), lineWidth: 2)
+                }
+            }
+            .containerBackground(for: .widget) {
+                if renderingMode == .fullColor { style.sky } else { Color.clear }
+            }
     }
 
     var body: some View {

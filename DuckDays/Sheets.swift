@@ -124,6 +124,32 @@ struct WidgetSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
+                // A push rather than another sheet: SheetShell already owns a
+                // navigation stack, and stacking modals to reach a settings
+                // choice two levels down is worse than a plain row.
+                NavigationLink {
+                    AppIconSheet(style: style)
+                } label: {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("App icon")
+                                .font(.system(size: 16, weight: .semibold,
+                                              design: .rounded))
+                                .foregroundStyle(Chrome.ink)
+                            Chrome.meta(AppIcons.current.name)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Chrome.dim)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Chrome.card))
+                }
+                .buttonStyle(.plain)
+
                 VStack(alignment: .leading, spacing: 6) {
                     Chrome.meta("ADDING IT")
                     Text("Long-press your home screen, tap the **+**, search for **Duck Days**, and pick a size.")
@@ -134,6 +160,77 @@ struct WidgetSheet: View {
             }
             .padding(.horizontal, Chrome.margin)
             .padding(.bottom, 30)
+        }
+    }
+}
+
+/// The home screen icon, one per duck.
+///
+/// Selection is not a local preference — it is whatever iOS currently has set,
+/// so the state is seeded from `AppIcons.current` and only advances once the
+/// system has actually accepted the change. Assuming success would leave the
+/// grid showing a tick against an icon the home screen is not using.
+struct AppIconSheet: View {
+    let style: DuckStyle
+    @State private var selectedID = AppIcons.current.id
+
+    private let columns = [GridItem(.adaptive(minimum: 92), spacing: 16)]
+
+    var body: some View {
+        ZStack {
+            PixelField(style: style)
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 20) {
+                    ForEach(DuckStyle.all) { candidate in
+                        Button {
+                            Task {
+                                if await AppIcons.apply(candidate) {
+                                    selectedID = candidate.id
+                                }
+                            }
+                        } label: {
+                            AppIconCard(style: candidate,
+                                        selected: candidate.id == selectedID)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, Chrome.margin)
+                .padding(.top, 12)
+                .padding(.bottom, 30)
+            }
+        }
+        .navigationTitle("App Icon")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Deliberately not `DuckCard`: that draws a whole pond, and the icon is the
+/// duck on the bare sky gradient. The swatch should show what lands on the
+/// home screen, not something close to it.
+private struct AppIconCard: View {
+    let style: DuckStyle
+    let selected: Bool
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                style.sky
+                PixelDuckView(style: style).padding(13)
+            }
+            .frame(width: 78, height: 78)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .inset(by: 2)
+                .strokeBorder(selected ? Color(rgb: style.accent) : .clear,
+                              lineWidth: 3))
+            .scaleEffect(selected ? 1 : 0.96)
+            .animation(.spring(response: 0.32, dampingFraction: 0.7), value: selected)
+
+            Text(style.name)
+                .font(.system(size: 11, weight: selected ? .bold : .medium,
+                              design: .monospaced))
+                .foregroundStyle(selected ? Chrome.ink : Chrome.dim)
         }
     }
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import WidgetKit
 
 /// A complete look for the countdown: duck sprite, palette, scene colours, and type.
 ///
@@ -157,6 +158,30 @@ enum DuckSprite {
     }
 }
 
+extension Image {
+    /// Keeps a sprite in its own colours on a tinted or clear home screen.
+    ///
+    /// In those modes WidgetKit does not draw the image — it derives a
+    /// silhouette from the alpha channel and fills it with the user's tint. A
+    /// sprite that is opaque edge to edge therefore comes back as one solid
+    /// block, which is why the whole widget rendered white. Declaring the image
+    /// full colour opts it out of that pass and it is drawn as authored.
+    ///
+    /// iOS 18 and up. Below that there are no tinted home screens to opt out of.
+    ///
+    /// Returns `some View` rather than `Image` because that is what
+    /// `widgetAccentedRenderingMode` returns, so every `Image`-only modifier
+    /// (`resizable`, `interpolation`, `antialiased`) has to come before it.
+    @ViewBuilder
+    func fullColorWhenTinted() -> some View {
+        if #available(iOS 18.0, *) {
+            widgetAccentedRenderingMode(.fullColor)
+        } else {
+            self
+        }
+    }
+}
+
 /// Draws the duck at whatever size it is given, preserving its aspect ratio.
 /// Nearest-neighbour scaling keeps the pixel edges hard instead of blurring them.
 struct PixelDuckView: View {
@@ -168,6 +193,7 @@ struct PixelDuckView: View {
             .resizable()
             .interpolation(.none)
             .antialiased(false)
+            .fullColorWhenTinted()
             .aspectRatio(contentMode: .fit)
             .accessibilityLabel("Pixel art rubber duck, \(style.name) style")
     }
@@ -185,6 +211,7 @@ struct PixelDecorView: View {
             .resizable()
             .interpolation(.none)
             .antialiased(false)
+            .fullColorWhenTinted()
             .aspectRatio(contentMode: .fit)
     }
 }

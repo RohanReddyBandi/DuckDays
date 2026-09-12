@@ -134,7 +134,8 @@ struct DuckPond<Overlay: View>: View {
 
                 water(w: w, h: h, surface: surface, unit: unit)
 
-                DuckFloating(style: style, animated: animated, phase: phase)
+                DuckFloating(style: style, animated: animated, phase: phase,
+                             unit: unit)
                     .frame(width: duckW, height: duckH)
                     .position(x: w * duckCenterX,
                               y: surface - duckH / 2 + duckH * submersion)
@@ -194,7 +195,11 @@ struct DuckPond<Overlay: View>: View {
     private func water(w: CGFloat, h: CGFloat, surface: CGFloat,
                        unit: CGFloat) -> some View {
         let depth = max(0, h - surface)
-        let tiles = max(4, Int((w / unit / 8).rounded()))
+        // Taken from the sprite rather than hardcoded, so changing the wave's
+        // shape in the forge cannot silently squash or stretch it here.
+        let tileWidth = CGFloat(DuckDecor.wave[0].count)
+        let waveRows = CGFloat(DuckDecor.wave.count)
+        let tiles = max(4, Int((w / unit / tileWidth).rounded()))
 
         LinearGradient(colors: [style.waterColor, style.waterDeepColor],
                        startPoint: .top, endPoint: .bottom)
@@ -205,10 +210,12 @@ struct DuckPond<Overlay: View>: View {
             .resizable()
             .interpolation(.none)
             .antialiased(false)
-            .frame(width: unit * CGFloat(tiles * 8), height: unit * 3)
-            .position(x: w / 2, y: surface - unit * 3 / 2 + unit)
+            .frame(width: unit * CGFloat(tiles) * tileWidth, height: unit * waveRows)
+            // Anchored so the solid bottom row always covers the first unit
+            // below the surface, whatever the crests do above it.
+            .position(x: w / 2, y: surface - unit * waveRows / 2 + unit)
 
-        Ripples(style: style, animated: animated, unit: unit)
+        Ripples(style: style, animated: animated, unit: unit, phase: phase)
             .frame(width: w, height: depth)
             .position(x: w / 2, y: surface + depth / 2)
     }
@@ -239,12 +246,13 @@ struct DuckFloating: View {
     let style: DuckStyle
     let animated: Bool
     var phase: Int? = nil
+    var unit: CGFloat = 2
 
     var body: some View {
         if animated {
-            AnimatedDuck(style: style)
+            AnimatedDuck(style: style, unit: unit)
         } else if let phase {
-            PosedDuck(style: style, phase: phase)
+            PosedDuck(style: style, phase: phase, unit: unit)
         } else {
             PixelDuckView(style: style)
         }
@@ -257,6 +265,7 @@ struct DuckFloating: View {
 private struct PosedDuck: View {
     let style: DuckStyle
     let phase: Int
+    let unit: CGFloat
 
     /// Step size and amplitude are a pair: too fine and a step rounds to the
     /// same pixel and nothing appears to move, too coarse and the duck jumps
@@ -266,11 +275,19 @@ private struct PosedDuck: View {
     private var t: Double { Double(phase) * 0.5 }
 
     var body: some View {
-        // No blink here. A pose is held for a whole entry, so even at 3s a
-        // "blink" means eyes shut for three seconds — asleep, not blinking.
+        // Travel is measured in sprite pixels, not points. The old amplitudes
+        // were a flat 6pt and 3°, which is a third of the duck's height on a
+        // small widget and a tenth of it on a large one — so the motion faded
+        // out exactly where there was the most room for it. Scaling by `unit`
+        // makes the bob the same size relative to the duck at every size.
+        //
+        // Three axes rather than one, each on its own phase offset so they
+        // never peak together: rise and fall, roll, and drift sideways the way
+        // something actually floating does.
         PixelDuckView(style: style)
-            .rotationEffect(.degrees(sin(t) * 3.0))
-            .offset(y: sin(t + 0.6) * 6)
+            .rotationEffect(.degrees(sin(t) * 5.5))
+            .offset(x: sin(t * 0.7 + 1.9) * unit * 2,
+                    y: sin(t + 0.6) * unit * 2.5)
             // Just under the entry interval, so wherever a transition does get
             // drawn the duck is still moving when the next pose arrives.
             .animation(.easeInOut(duration: 2.4), value: phase)
@@ -279,6 +296,7 @@ private struct PosedDuck: View {
 
 private struct AnimatedDuck: View {
     let style: DuckStyle
+    let unit: CGFloat
     @State private var bobbing = false
     @State private var blinking = false
 
@@ -286,8 +304,8 @@ private struct AnimatedDuck: View {
 
     var body: some View {
         PixelDuckView(style: style, blinking: blinking)
-            .rotationEffect(.degrees(bobbing ? 1.6 : -1.6))
-            .offset(y: bobbing ? -3 : 3)
+            .rotationEffect(.degrees(bobbing ? 2.6 : -2.6))
+            .offset(y: bobbing ? -unit * 1.5 : unit * 1.5)
             .onAppear {
                 withAnimation(.easeInOut(duration: 2.1).repeatForever(autoreverses: true)) {
                     bobbing = true
@@ -342,7 +360,17 @@ private struct Ripples: View {
     let style: DuckStyle
     let animated: Bool
     let unit: CGFloat
+    var phase: Int? = nil
     @State private var shimmer = false
+
+    /// Widget-side drift. Each row slides on its own phase offset and at its
+    /// own rate, so the water shears rather than sliding as one sheet. Still
+    /// snapped to whole pixels — a sub-pixel slide rounds to nothing.
+    private func drift(row: Int) -> CGFloat {
+        guard let phase else { return 0 }
+        let t = Double(phase) * 0.35 + Double(row) * 2.1
+        return (CGFloat(sin(t)) * 2).rounded() * unit
+    }
 
     /// (column, length) in pixel units, cycled per row. Two dashes a row, not
     /// three: any denser and the water reads as a repeating texture rather than
@@ -367,10 +395,12 @@ private struct Ripples: View {
                             .frame(width: unit * dash.len, height: unit)
                             .position(x: unit * (dash.x + dash.len / 2),
                                       y: unit * (CGFloat(row) * 5 + 2))
+                            .offset(x: drift(row: row))
                     }
                 }
             }
         }
+        .animation(.easeInOut(duration: 2.4), value: phase)
         .onAppear {
             guard animated else { return }
             withAnimation(.easeInOut(duration: 2.6).repeatForever(autoreverses: true)) {

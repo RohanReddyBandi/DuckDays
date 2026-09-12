@@ -13,6 +13,8 @@ Usage:
     python3 tools/duck_forge.py swift              # emit the Swift tables
     python3 tools/duck_forge.py icon               # emit the app icon
 """
+import json
+import os
 import struct
 import sys
 import zlib
@@ -324,8 +326,17 @@ def star_big_sprite():
 
 
 def wave_sprite():
-    """Tiles horizontally into a scalloped waterline."""
-    return ["..wwww..", ".wwwwww.", "wwwwwwww"]
+    """Tiles horizontally into a scalloped waterline.
+
+    Column heights are [1,2,3,4,4,3,2,1]: a symmetric ramp up and back down,
+    so crest and trough are the same width and each side is a clean diagonal.
+
+    The old tile was [1,2,3,3,3,3,2,1] — a four-wide crest against a two-wide
+    trough. Fat crests and pinched troughs read as a solid bar with bites taken
+    out of it rather than as water, which is the "pudge" this replaces. The
+    fourth row is what buys the diagonal; three rows can only step once a side.
+    """
+    return ["...ww...", "..wwww..", ".wwwwww.", "wwwwwwww"]
 
 
 # ---------------------------------------------------------------- styles
@@ -443,6 +454,27 @@ def laurel(cells):
     return cells
 
 
+def mapleleaf(cells):
+    """A maple leaf lying across the crown, stem trailing off to the right.
+
+    Flat and wide rather than upright. Two upright versions came first — a
+    symmetric diamond with a vein, then one with side lobes — and both read as
+    a rooster comb, because anything tall, red and pointed on top of a bird's
+    head does. Lying it down fixes that, and the stem is what stops the
+    remaining lens shape reading as Artist's beret.
+
+    It starts at row 1, not row 0: `stamp` rings a shape with outline before
+    filling it, and at row 0 that ring falls off the top of the canvas and the
+    leaf comes out visibly chopped.
+    """
+    blade = ({(12, 1), (13, 1), (15, 1), (17, 1), (18, 1)}   # serrated tips
+             | rect(10, 2, 20, 2) | rect(11, 3, 19, 3) | rect(13, 4, 17, 4))
+    stamp(cells, blade | {(21, 3), (22, 4)}, ACCENT)
+    for c in {(21, 3), (22, 4)}:
+        cells[c] = ACCENT_DARK
+    return cells
+
+
 def S(id, name, accessory, body, beak, cheek, bg0, bg1, accent, accent_dark,
       ink, font, water, night, upper=False):
     return dict(id=id, name=name, accessory=accessory, body=body, beak=beak,
@@ -474,6 +506,10 @@ STYLES = [
     S("lagoon",   "Floaty",    innertube,  "FFDE59", "E8621F", "F0389E", "36C9D6", "9BEDF2", "FF6B9D", "C2185B", "064450", "rounded",    "1FA3B5", False),
     S("breeze",   "Whirly",    propeller,  "9BD4FF", "F2994A", "FF8FB0", "FFF6D6", "FFE9A8", "FF6B6B", "C23B3B", "3A5E7A", "rounded",    "7FC4E8", False),
     S("olive",    "Laurel",     laurel,     "F2E8D0", "D9A02E", "E0938A", "3A4227", "6B7A45", "E8D98A", "8C7A2E", "F0F2DC", "serif",      "252B18", True, upper=True),
+    # Autumn. Warm duck and golden-hour sky over a cool slate pond — the cold
+    # water against warm foliage is what makes it read as fall rather than as
+    # another desert palette, which is where Cowboy already sits.
+    S("harvest",  "Maple",      mapleleaf,  "E8A24C", "B5601F", "E0708C", "E8B563", "F7E0B0", "D93A2B", "8C1F14", "4A2B14", "serif",      "6B8FA3", False),
 ]
 
 
@@ -584,7 +620,7 @@ def scene_sheet(path, cell=10):
     print(f"wrote {path}")
 
 
-def app_icon(path, style_id="classic", size=1024, cell=28):
+def app_icon(path, style_id="classic", size=1024, cell=28, quiet=False):
     row = next(r for r in STYLES if r["id"] == style_id)
     palette, bg0, bg1 = style_palette(row)
     grid = _grid(style_cells(row), W, H)
@@ -597,7 +633,49 @@ def app_icon(path, style_id="classic", size=1024, cell=28):
     blit(pixels, grid, palette,
          (size - W * cell) // 2, (size - H * cell) // 2, cell, size, size)
     png(path, pixels, size, size)
-    print(f"wrote {path} ({size}x{size}, {style_id} style)")
+    if not quiet:
+        print(f"wrote {path} ({size}x{size}, {style_id} style)")
+
+
+# The style the home screen shows until the user picks another. Its icon set is
+# plain "AppIcon", which is what ASSETCATALOG_COMPILER_APPICON_NAME points at;
+# every other style becomes an alternate named after the duck.
+DEFAULT_ICON = "classic"
+
+
+def icon_set_name(row):
+    return "AppIcon" if row["id"] == DEFAULT_ICON else "AppIcon-" + row["name"]
+
+
+def app_icons(root="DuckDays/Assets.xcassets"):
+    """One icon set per duck, so the home screen can match the widget.
+
+    Each becomes its own `.appiconset` inside the catalog. Nothing needs adding
+    to the project file for these — Assets.xcassets is a folder reference, so
+    the catalog picks up new sets on its own — but the alternates do have to be
+    named in ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES or the compiler
+    leaves them out of CFBundleAlternateIcons and `setAlternateIconName` fails
+    at runtime with no build-time warning.
+    """
+    written = []
+    for row in STYLES:
+        name = icon_set_name(row)
+        folder = os.path.join(root, name + ".appiconset")
+        os.makedirs(folder, exist_ok=True)
+        app_icon(os.path.join(folder, name + ".png"), style_id=row["id"],
+                 quiet=True)
+        with open(os.path.join(folder, "Contents.json"), "w") as f:
+            json.dump({
+                "images": [{"filename": name + ".png", "idiom": "universal",
+                            "platform": "ios", "size": "1024x1024"}],
+                "info": {"author": "xcode", "version": 1},
+            }, f, indent=2)
+        written.append(name)
+
+    alternates = [n for n in written if n != "AppIcon"]
+    print(f"wrote {len(written)} icon sets into {root}")
+    print("ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = \""
+          + " ".join(alternates) + "\";")
 
 
 def emit_swift(path):
@@ -658,6 +736,8 @@ if __name__ == "__main__":
     arg = sys.argv[2] if len(sys.argv) > 2 else None
     if mode == "icon":
         app_icon(arg or "DuckDays/Assets.xcassets/AppIcon.appiconset/AppIcon.png")
+    elif mode == "icons":
+        app_icons(arg or "DuckDays/Assets.xcassets")
     elif mode == "swift":
         emit_swift(arg or "Shared/DuckStyles+Generated.swift")
     elif mode == "scene":
