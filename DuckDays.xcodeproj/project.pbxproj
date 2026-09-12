@@ -11,11 +11,13 @@
 		D0CC00000000000000000025 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000001A /* ContentView.swift */; };
 		D0CC00000000000000000026 /* DuckStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000022 /* DuckStyle.swift */; };
 		D0CC00000000000000000027 /* Countdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000023 /* Countdown.swift */; };
+		D0CC0000000000000000004C /* CountdownIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000004E /* CountdownIntent.swift */; };
 		D0CC00000000000000000028 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000001B /* Assets.xcassets */; };
 		D0CC00000000000000000029 /* DuckWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000001D /* DuckWidgetBundle.swift */; };
 		D0CC0000000000000000002A /* DuckWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000001E /* DuckWidget.swift */; };
 		D0CC0000000000000000002B /* DuckStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000022 /* DuckStyle.swift */; };
 		D0CC0000000000000000002C /* Countdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000023 /* Countdown.swift */; };
+		D0CC0000000000000000004D /* CountdownIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000004E /* CountdownIntent.swift */; };
 		D0CC0000000000000000002D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000021 /* Assets.xcassets */; };
 		D0CC0000000000000000002E /* DuckWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000007 /* DuckWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D0CC00000000000000000031 /* CountdownCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000032 /* CountdownCard.swift */; };
@@ -69,6 +71,7 @@
 		D0CC00000000000000000021 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D0CC00000000000000000022 /* DuckStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuckStyle.swift; sourceTree = "<group>"; };
 		D0CC00000000000000000023 /* Countdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Countdown.swift; sourceTree = "<group>"; };
+		D0CC0000000000000000004E /* CountdownIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownIntent.swift; sourceTree = "<group>"; };
 		D0CC00000000000000000032 /* CountdownCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownCard.swift; sourceTree = "<group>"; };
 		D0CC00000000000000000036 /* DuckStyles+Generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DuckStyles+Generated.swift"; sourceTree = "<group>"; };
 		D0CC0000000000000000003A /* DuckScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuckScene.swift; sourceTree = "<group>"; };
@@ -146,6 +149,7 @@
 			children = (
 				D0CC00000000000000000022 /* DuckStyle.swift */,
 				D0CC00000000000000000023 /* Countdown.swift */,
+				D0CC0000000000000000004E /* CountdownIntent.swift */,
 				D0CC00000000000000000040 /* PrivacyInfo.xcprivacy */,
 				D0CC00000000000000000032 /* CountdownCard.swift */,
 				D0CC00000000000000000036 /* DuckStyles+Generated.swift */,
@@ -263,6 +267,7 @@
 				D0CC00000000000000000024 /* DuckDaysApp.swift in Sources */,
 				D0CC00000000000000000026 /* DuckStyle.swift in Sources */,
 				D0CC00000000000000000027 /* Countdown.swift in Sources */,
+				D0CC0000000000000000004C /* CountdownIntent.swift in Sources */,
 				D0CC00000000000000000031 /* CountdownCard.swift in Sources */,
 				D0CC00000000000000000037 /* DuckStyles+Generated.swift in Sources */,
 				D0CC00000000000000000039 /* DuckScene.swift in Sources */,
@@ -277,6 +282,7 @@
 				D0CC00000000000000000029 /* DuckWidgetBundle.swift in Sources */,
 				D0CC0000000000000000002B /* DuckStyle.swift in Sources */,
 				D0CC0000000000000000002C /* Countdown.swift in Sources */,
+				D0CC0000000000000000004D /* CountdownIntent.swift in Sources */,
 				D0CC00000000000000000033 /* CountdownCard.swift in Sources */,
 				D0CC00000000000000000038 /* DuckStyles+Generated.swift in Sources */,
 				D0CC0000000000000000003B /* DuckScene.swift in Sources */,

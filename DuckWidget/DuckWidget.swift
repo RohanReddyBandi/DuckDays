@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 struct DuckEntry: TimelineEntry {
     let date: Date
@@ -8,13 +9,15 @@ struct DuckEntry: TimelineEntry {
     var phase: Int = 0
 }
 
-struct DuckProvider: TimelineProvider {
+struct DuckProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> DuckEntry {
         DuckEntry(date: Date(), event: .placeholder)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (DuckEntry) -> Void) {
-        completion(DuckEntry(date: Date(), event: CountdownStore.load()))
+    func snapshot(for configuration: SelectCountdownIntent,
+                  in context: Context) async -> DuckEntry {
+        DuckEntry(date: Date(),
+                  event: CountdownStore.event(id: configuration.countdown?.id))
     }
 
     /// Three seconds apart, for an hour. Stepping through entries the provider
@@ -31,12 +34,23 @@ struct DuckProvider: TimelineProvider {
     private static let motionStep: TimeInterval = 3
     private static let motionSpan = 1200
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<DuckEntry>) -> Void) {
-        let event = CountdownStore.load()
+    /// Minute precision without motion still needs an entry a minute, or the
+    /// number sits there stale. An hour of them costs the same one reload as
+    /// the motion timeline does.
+    private static let minuteStep: TimeInterval = 60
+    private static let minuteSpan = 60
+
+    func timeline(for configuration: SelectCountdownIntent,
+                  in context: Context) async -> Timeline<DuckEntry> {
+        let event = CountdownStore.event(id: configuration.countdown?.id)
         let calendar = Calendar.current
         let now = Date()
         let today = calendar.startOfDay(for: now)
 
+        // Every entry carries its own date and the scene reads the countdown
+        // from that, so entry density buys text freshness and duck motion at
+        // the same time. Motion is the denser of the two, so it wins when both
+        // are on rather than the two being added together.
         var entries: [DuckEntry] = []
         if event.motion {
             for step in 0..<Self.motionSpan {
@@ -44,23 +58,36 @@ struct DuckProvider: TimelineProvider {
                     date: now.addingTimeInterval(Double(step) * Self.motionStep),
                     event: event, phase: step))
             }
+        } else if event.precision == .minute {
+            for step in 0..<Self.minuteSpan {
+                entries.append(DuckEntry(
+                    date: now.addingTimeInterval(Double(step) * Self.minuteStep),
+                    event: event))
+            }
         } else {
             entries.append(DuckEntry(date: now, event: event))
         }
 
         // One entry per midnight for the next week, so the number ticks over on
-        // its own even if the system is slow to refresh the timeline.
-        let lastMoving = entries.last?.date ?? now
-        for offset in 1...7 {
-            guard let midnight = calendar.date(byAdding: .day, value: offset, to: today),
-                  midnight > lastMoving else { continue }
-            entries.append(DuckEntry(date: midnight, event: event))
+        // its own even if the system is slow to refresh the timeline. Only day
+        // precision needs these; a minute countdown is already reloading hourly.
+        let lastScheduled = entries.last?.date ?? now
+        if event.precision == .day {
+            for offset in 1...7 {
+                guard let midnight = calendar.date(byAdding: .day, value: offset, to: today),
+                      midnight > lastScheduled else { continue }
+                entries.append(DuckEntry(date: midnight, event: event))
+            }
         }
 
-        let refresh = event.motion
-            ? lastMoving
-            : (calendar.date(byAdding: .day, value: 1, to: today) ?? now.addingTimeInterval(3600))
-        completion(Timeline(entries: entries, policy: .after(refresh)))
+        let refresh: Date
+        if event.motion || event.precision == .minute {
+            refresh = lastScheduled
+        } else {
+            refresh = calendar.date(byAdding: .day, value: 1, to: today)
+                ?? now.addingTimeInterval(3600)
+        }
+        return Timeline(entries: entries, policy: .after(refresh))
     }
 }
 
@@ -70,6 +97,19 @@ struct DuckWidgetEntryView: View {
     var entry: DuckEntry
 
     private var style: DuckStyle { entry.event.style }
+
+    /// One number for the circular lock screen widget. A minute countdown that
+    /// is still days out shows days; inside a day it switches to hours, because
+    /// "0" would be wrong all day and "1440" is not a number anyone reads.
+    private var circularValue: String {
+        guard entry.event.precision == .minute else {
+            return "\(abs(entry.event.daysRemaining(from: entry.date)))"
+        }
+        let parts = entry.event.remaining(from: entry.date)
+        if parts.days > 0 { return "\(parts.days)d" }
+        if parts.hours > 0 { return "\(parts.hours)h" }
+        return "\(parts.minutes)m"
+    }
 
     /// The only chrome: one hairline of the same near-black the sprites are
     /// outlined with, so the widget edge reads as part of the pixel art.
@@ -105,8 +145,7 @@ struct DuckWidgetEntryView: View {
         case .accessoryRectangular:
             HStack(spacing: 6) {
                 PixelDuckView(style: style).frame(width: 26)
-                Text(CountdownPhrasing.compact(for: entry.event.daysRemaining(from: entry.date),
-                                               title: entry.event.title))
+                Text(CountdownPhrasing.compact(for: entry.event, at: entry.date))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .lineLimit(2)
             }
@@ -115,8 +154,9 @@ struct DuckWidgetEntryView: View {
         case .accessoryCircular:
             ZStack {
                 AccessoryWidgetBackground()
-                // No room for "days since" here, so show magnitude only.
-                Text("\(abs(entry.event.daysRemaining(from: entry.date)))")
+                // No room for a unit or a direction here, so show magnitude
+                // only — days, or hours once a minute countdown is inside a day.
+                Text(circularValue)
                     .font(.system(size: 22, weight: .heavy, design: .rounded))
                     .minimumScaleFactor(0.5)
             }
@@ -132,8 +172,15 @@ struct DuckWidgetEntryView: View {
 struct DuckWidget: Widget {
     let kind = "DuckWidget"
 
+    /// Configurable rather than static, so two widgets on one home screen can
+    /// count down to different things. Long-press a widget and Edit to choose.
+    ///
+    /// Switching a shipped widget from `StaticConfiguration` to this resets any
+    /// widget already on a home screen to its default countdown — unavoidable,
+    /// and the default is the first one in the list rather than a placeholder.
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: DuckProvider()) { entry in
+        AppIntentConfiguration(kind: kind, intent: SelectCountdownIntent.self,
+                               provider: DuckProvider()) { entry in
             DuckWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Duck Countdown")

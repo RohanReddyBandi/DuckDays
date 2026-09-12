@@ -2,25 +2,34 @@ import SwiftUI
 import WidgetKit
 
 struct ContentView: View {
-    @State private var title: String = ""
-    @State private var date: Date = Date()
-    @State private var styleID: String = DuckStyle.fallback.id
+    @State private var events: [CountdownEvent] = [.placeholder]
+    @State private var index = 0
     @State private var previewSize: CountdownScene.Size = .small
-    /// Widget-only. The duck on this screen always animates — the app has a run
-    /// loop and a bobbing sprite costs it nothing, so there is nothing here for
-    /// the setting to save. It travels in the event because the widget, which
-    /// is the thing it governs, reads its settings from there.
-    @State private var motion = true
     @State private var sheet: DuckSheet?
     @State private var justSaved = false
+    /// Re-read often enough that a minute countdown ticks over while you watch.
+    /// Five seconds, not one: the finest thing on screen is a minute, and the
+    /// whole scene re-renders on each tick.
+    @State private var now = Date()
+    private let clock = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 
-    private var draft: CountdownEvent {
-        CountdownEvent(title: title.isEmpty ? "the big day" : title,
-                       date: date, styleID: styleID, motion: motion)
+    private var current: CountdownEvent {
+        events.indices.contains(index) ? events[index] : .placeholder
     }
 
-    private var style: DuckStyle { draft.style }
+    private var style: DuckStyle { current.style }
     private var accent: Color { Color(rgb: style.accent) }
+
+    /// Edits go through the array so there is one copy of the truth. Writing
+    /// back out of range is a no-op rather than a crash — `index` and `events`
+    /// are separate pieces of state and a delete can land between them.
+    private var currentBinding: Binding<CountdownEvent> {
+        Binding(get: { current },
+                set: { updated in
+                    guard events.indices.contains(index) else { return }
+                    events[index] = updated
+                })
+    }
 
     private var heroAspect: CGFloat {
         switch previewSize {
@@ -30,89 +39,128 @@ struct ContentView: View {
         }
     }
 
-    var body: some View {
-        ZStack {
-            PixelField(style: style)
-                .animation(.easeInOut(duration: 0.45), value: styleID)
+    /// A page view needs a concrete height, so it is computed from the real
+    /// width rather than guessed.
+    private func heroHeight(width: CGFloat) -> CGFloat {
+        let full = max(1, width - Chrome.margin * 2)
+        return previewSize == .small ? min(full, 224) : full / heroAspect
+    }
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 26) {
-                    masthead
-                    hero
-                    eventCard
-                    duckRow
-                    callToAction
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                PixelField(style: style)
+                    .animation(.easeInOut(duration: 0.45), value: current.styleID)
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 26) {
+                        masthead
+                        hero(width: proxy.size.width)
+                        eventCard
+                        duckRow
+                        callToAction
+                    }
+                    .padding(.bottom, 40)
                 }
-                .padding(.bottom, 40)
             }
         }
         .preferredColorScheme(.dark)
         .tint(accent)
-        .onAppear(perform: loadSavedEvent)
+        .onAppear(perform: load)
+        .onReceive(clock) { now = $0 }
         .sheet(item: $sheet) { which in
             switch which {
             case .event:
-                EventEditorSheet(title: $title, date: $date, style: style)
+                EventEditorSheet(event: currentBinding, style: style,
+                                 canDelete: events.count > 1,
+                                 onDelete: deleteCurrent)
                     .presentationDetents([.large])
             case .widget:
-                WidgetSheet(size: $previewSize, motion: $motion,
-                            event: draft, style: style)
+                WidgetSheet(size: $previewSize, event: currentBinding, style: style)
                     // An explicit height rather than .medium: the content is a
                     // known size, and .medium clipped the controls.
-                    .presentationDetents([.height(500), .large])
+                    .presentationDetents([.height(540), .large])
             case .allDucks:
-                AllDucksSheet(styleID: $styleID, style: style)
+                AllDucksSheet(styleID: currentBinding.styleID, style: style)
                     .presentationDetents([.large])
             }
         }
-        .onChange(of: styleID) { _, _ in persist() }
-        .onChange(of: title) { _, _ in persist() }
-        .onChange(of: date) { _, _ in persist() }
-        .onChange(of: motion) { _, _ in persist() }
+        .onChange(of: events) { _, _ in persist() }
     }
 
     // MARK: screen
 
     private var masthead: some View {
-        HStack {
+        HStack(spacing: 10) {
             Text("Duck Days")
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(Chrome.ink)
             Spacer()
-            Button { sheet = .widget } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Chrome.dim)
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(Chrome.card))
-            }
-            .buttonStyle(.plain)
+            circleButton("plus", action: addCountdown)
+            circleButton("slider.horizontal.3") { sheet = .widget }
         }
         .padding(.horizontal, Chrome.margin)
         .padding(.top, 6)
     }
 
-    /// The countdown is the point of the app, so it gets the room.
-    private var hero: some View {
-        Button { sheet = .widget } label: {
-            CountdownScene(event: draft, referenceDate: Date(),
-                           size: previewSize, animated: true)
-                .aspectRatio(heroAspect, contentMode: .fit)
-                .frame(maxWidth: previewSize == .small ? 224 : .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, Chrome.margin)
+    private func circleButton(_ symbol: String,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Chrome.dim)
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(Chrome.card))
         }
         .buttonStyle(.plain)
+    }
+
+    /// The countdown is the point of the app, so it gets the room. With more
+    /// than one it becomes a pager rather than a list — the hero staying hero
+    /// is the whole reason the screen looks like this.
+    private func hero(width: CGFloat) -> some View {
+        VStack(spacing: 14) {
+            TabView(selection: $index) {
+                ForEach(Array(events.enumerated()), id: \.element.id) { position, event in
+                    Button { sheet = .widget } label: {
+                        CountdownScene(event: event, referenceDate: now,
+                                       size: previewSize, animated: true)
+                            .aspectRatio(heroAspect, contentMode: .fit)
+                            .frame(maxWidth: previewSize == .small ? 224 : .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 26,
+                                                        style: .continuous))
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, Chrome.margin)
+                    }
+                    .buttonStyle(.plain)
+                    .tag(position)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: heroHeight(width: width))
+
+            if events.count > 1 { dots }
+        }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: previewSize)
-        .animation(.easeInOut(duration: 0.25), value: styleID)
+    }
+
+    private var dots: some View {
+        HStack(spacing: 7) {
+            ForEach(events.indices, id: \.self) { position in
+                Circle()
+                    .fill(position == index ? accent : Color.white.opacity(0.24))
+                    .frame(width: position == index ? 8 : 6,
+                           height: position == index ? 8 : 6)
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: index)
     }
 
     private var eventCard: some View {
         Button { sheet = .event } label: {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(draft.title)
+                    Text(current.title)
                         .font(.system(size: 21, weight: .semibold, design: .rounded))
                         .foregroundStyle(Chrome.ink)
                         .lineLimit(1)
@@ -133,8 +181,14 @@ struct ContentView: View {
     }
 
     private var subtitle: String {
-        let days = draft.daysRemaining()
-        let when = date.formatted(.dateTime.day().month(.abbreviated).year())
+        let when = current.date.formatted(.dateTime.day().month(.abbreviated).year())
+        if current.precision == .minute {
+            let parts = current.remaining(from: now)
+            let head = CountdownPhrasing.minuteHeadline(for: parts).lowercased()
+            if head == "now" { return "\(when)  •  now" }
+            return "\(when)  •  \(parts.past ? "\(head) ago" : "in \(head)")"
+        }
+        let days = current.daysRemaining(from: now)
         switch days {
         case 0: return "\(when)  •  today"
         case 1: return "\(when)  •  tomorrow"
@@ -159,9 +213,11 @@ struct ContentView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 14) {
                         ForEach(DuckStyle.all) { candidate in
-                            Button { styleID = candidate.id } label: {
+                            Button {
+                                currentBinding.wrappedValue.styleID = candidate.id
+                            } label: {
                                 DuckCard(style: candidate,
-                                         selected: candidate.id == styleID)
+                                         selected: candidate.id == current.styleID)
                             }
                             .buttonStyle(.plain)
                             .id(candidate.id)
@@ -171,9 +227,10 @@ struct ContentView: View {
                     .padding(.vertical, 2)
                 }
                 // Your duck should be on screen when you open the app, even if
-                // it is the twentieth in the row.
-                .onAppear { scroller.scrollTo(styleID, anchor: .center) }
-                .onChange(of: styleID) { _, id in
+                // it is the twentieth in the row — and again when you swipe to
+                // a countdown wearing a different one.
+                .onAppear { scroller.scrollTo(current.styleID, anchor: .center) }
+                .onChange(of: current.styleID) { _, id in
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                         scroller.scrollTo(id, anchor: .center)
                     }
@@ -185,7 +242,6 @@ struct ContentView: View {
     private var callToAction: some View {
         Button {
             persist()
-            WidgetCenter.shared.reloadAllTimelines()
             justSaved = true
             Task {
                 try? await Task.sleep(for: .seconds(1.8))
@@ -204,18 +260,38 @@ struct ContentView: View {
 
     // MARK: state
 
-    private func loadSavedEvent() {
-        let saved = CountdownStore.load()
-        title = saved.title
-        date = saved.date
-        styleID = saved.styleID
-        motion = saved.motion
+    private func load() {
+        events = CountdownStore.loadAll()
+        index = min(index, max(0, events.count - 1))
+    }
+
+    private func addCountdown() {
+        let start = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+        // A duck it is not already wearing, so a new countdown is tellable
+        // apart from the one beside it at a glance.
+        let taken = Set(events.map(\.styleID))
+        let fresh = DuckStyle.all.first { !taken.contains($0.id) } ?? DuckStyle.fallback
+        events.append(CountdownEvent(title: "the big day", date: start,
+                                     styleID: fresh.id))
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+            index = events.count - 1
+        }
+        sheet = .event
+    }
+
+    private func deleteCurrent() {
+        guard events.count > 1, events.indices.contains(index) else { return }
+        let doomed = index
+        // Step the page back before the array shrinks, so the pager is never
+        // pointing past the end even for a single layout pass.
+        index = max(0, doomed - 1)
+        events.remove(at: doomed)
     }
 
     /// Edits save as they happen, so the button is about adding the widget
     /// rather than about committing a form.
     private func persist() {
-        CountdownStore.save(draft)
+        CountdownStore.saveAll(events)
         WidgetCenter.shared.reloadAllTimelines()
     }
 }

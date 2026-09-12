@@ -41,10 +41,12 @@ struct CountdownScene: View {
     /// `.fullColor` everywhere except a tinted or clear home screen.
     @Environment(\.widgetRenderingMode) private var renderingMode
 
-    private var days: Int { event.daysRemaining(from: referenceDate) }
     private var style: DuckStyle { event.style }
+    private var headlineText: String {
+        CountdownPhrasing.headline(for: event, at: referenceDate)
+    }
     private var captionText: String {
-        let text = CountdownPhrasing.caption(for: days, title: event.title)
+        let text = CountdownPhrasing.caption(for: event, at: referenceDate)
         return style.uppercaseCaption ? text.uppercased() : text
     }
 
@@ -83,7 +85,7 @@ struct CountdownScene: View {
             let ratio = size.typeScale
 
             let type = VStack(spacing: h * 0.01) {
-                Text(CountdownPhrasing.headline(for: days))
+                Text(headlineText)
                     .font(.system(size: ratio.number * h, weight: .heavy,
                                   design: style.font.design))
                     .minimumScaleFactor(0.4)
@@ -173,18 +175,17 @@ struct CountdownScene: View {
         let h = m.size.height
         let scale = (number: ratio.number * h, caption: ratio.caption * h,
                      meta: ratio.meta * h)
-        let text = CountdownPhrasing.caption(for: days, title: event.title)
         return VStack(spacing: 0) {
             // "12 Days" — count and unit are one phrase at one size. The word
             // is what makes the number mean something, so it is not demoted to
             // the caption. No per-case size fudging: the headline is one line
             // and scales itself down when the count runs to three digits.
-            Text(CountdownPhrasing.headline(for: days))
+            Text(headlineText)
                 .font(.system(size: scale.number, weight: .heavy,
                               design: style.font.design))
                 .minimumScaleFactor(0.4)
                 .lineLimit(1)
-            Text(style.uppercaseCaption ? text.uppercased() : text)
+            Text(captionText)
                 .font(.system(size: scale.caption, weight: .semibold,
                               design: style.font.design))
                 .tracking(style.uppercaseCaption ? 0.6 : 0)

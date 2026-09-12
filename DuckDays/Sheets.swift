@@ -34,17 +34,21 @@ private struct SheetShell<Content: View>: View {
 }
 
 struct EventEditorSheet: View {
-    @Binding var title: String
-    @Binding var date: Date
+    @Binding var event: CountdownEvent
     let style: DuckStyle
+    var canDelete: Bool = false
+    var onDelete: () -> Void = {}
+
+    @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
+    @State private var confirmingDelete = false
 
     var body: some View {
         SheetShell(title: "Event", style: style) {
             VStack(alignment: .leading, spacing: 26) {
                 VStack(alignment: .leading, spacing: 8) {
                     Chrome.meta("WHAT")
-                    TextField("", text: $title, prompt:
+                    TextField("", text: $event.title, prompt:
                                 Text("the big day").foregroundStyle(.white.opacity(0.22)))
                         .font(.system(size: 26, weight: .semibold, design: .rounded))
                         .foregroundStyle(Chrome.ink)
@@ -54,26 +58,77 @@ struct EventEditorSheet: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Chrome.meta("WHEN")
-                    DatePicker("", selection: $date, displayedComponents: .date)
+                    // The picker gains a time row when the countdown counts to
+                    // the minute, because a minute countdown to midnight-by-
+                    // default would be wrong for almost every event.
+                    DatePicker("", selection: $event.date,
+                               displayedComponents: event.precision == .minute
+                                   ? [.date, .hourAndMinute] : .date)
                         .datePickerStyle(.graphical)
                         .tint(Color(rgb: style.accent))
                         .padding(.horizontal, -6)
+
+                    Toggle(isOn: Binding(
+                        get: { event.precision == .minute },
+                        set: { event.precision = $0 ? .minute : .day }
+                    )) {
+                        Text("Count to the minute")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Chrome.ink)
+                    }
+                    .tint(Color(rgb: style.accent))
+                    .padding(.top, 4)
+
+                    Text(event.precision == .minute
+                         ? "Shows hours and minutes as well as days."
+                         : "Counts whole days, so tomorrow reads as 1 Day all evening.")
+                        .font(.system(size: 13, weight: .regular, design: .rounded))
+                        .foregroundStyle(Chrome.dim)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 // Past dates are fine — the countdown just counts the other way.
                 Chrome.meta("A date in the past counts up instead of down.", size: 11)
+
+                if canDelete {
+                    Button(role: .destructive) {
+                        confirmingDelete = true
+                    } label: {
+                        Text("Delete countdown")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color(rgb: 0xFF6B6B))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color(rgb: 0xFF6B6B).opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .confirmationDialog("Delete \(event.title)?", isPresented: $confirmingDelete,
+                                        titleVisibility: .visible) {
+                        Button("Delete", role: .destructive) {
+                            // Dismiss first: the sheet is bound to the event
+                            // about to be removed, and letting it re-render
+                            // against a deleted index is how you get a blank
+                            // flash on the way out.
+                            dismiss()
+                            onDelete()
+                        }
+                        Button("Keep it", role: .cancel) {}
+                    } message: {
+                        Text("Widgets showing it will fall back to your first countdown.")
+                    }
+                }
             }
             .padding(.horizontal, Chrome.margin)
             .padding(.bottom, 30)
         }
-        .onAppear { focused = title.isEmpty }
+        .onAppear { focused = event.title.isEmpty || event.title == "the big day" }
     }
 }
 
 struct WidgetSheet: View {
     @Binding var size: CountdownScene.Size
-    @Binding var motion: Bool
-    let event: CountdownEvent
+    @Binding var event: CountdownEvent
     let style: DuckStyle
 
     static let stageHeight: CGFloat = 200
@@ -111,7 +166,7 @@ struct WidgetSheet: View {
                     // Named for what it actually governs. Calling it "Duck
                     // motion" while the duck above it keeps bobbing would read
                     // as a broken switch.
-                    Toggle(isOn: $motion) {
+                    Toggle(isOn: $event.motion) {
                         Text("Widget motion")
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(Chrome.ink)

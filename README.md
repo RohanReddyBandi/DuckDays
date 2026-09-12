@@ -55,6 +55,39 @@ re-running `swift`. Changing the body shape means editing `HEAD`, `BELLY`, and `
 which updates every duck at once. Accessories are placed relative to `HX`, the column
 the head is centred on, so they travel with the duck if it ever moves again.
 
+## Countdowns
+
+The store holds a **list**. Each countdown has a stable `id`, its own duck, its own
+Widget motion setting, and its own precision — and a widget is configured against one
+of them by id, so two Duck Days widgets on one home screen can be waiting for
+different things. That is why the widget is an `AppIntentConfiguration` rather than a
+`StaticConfiguration`: `SelectCountdownIntent` carries the chosen `CountdownEntity`,
+and `CountdownStore.event(id:)` resolves it at render time so edits in the app reach
+every widget pointed at that countdown.
+
+Resolution falls back to the **first countdown**, never to the placeholder — a widget
+whose countdown was deleted should keep showing something real.
+
+**Precision** is per countdown:
+
+- `.day` counts calendar days, so an event tomorrow morning still reads "1 Day" at
+  eleven tonight rather than "9 Hrs". This is the "how many more sleeps" question.
+- `.minute` counts the real interval and shows two units: "3 Days 4 Hrs", then
+  "4 Hrs 37 Min", then "37 Min". Never three — the third unit does not fit the
+  headline at small size and is noise next to the first.
+
+Version 1.0 stored exactly one event under its own key. The first read migrates that
+into a one-item list and **leaves the old key in place**, so a rollback still finds it.
+
+```bash
+sh tools/test-phrasing.sh   # phrasing + tolerant decoding, no simulator needed
+```
+
+That script compiles the real `Shared/Countdown.swift` for the Mac against a stub
+`DuckStyle` and asserts on the output. It covers both precisions, the singular/plural
+and unit-dropping branches, both directions, and decoding a 1.0 payload that has
+neither an `id` nor a `precision`.
+
 ## The scene
 
 `Shared/DuckScene.swift` draws the pond that fills the widget: sky gradient, a sun or
