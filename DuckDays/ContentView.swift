@@ -11,6 +11,8 @@ struct ContentView: View {
     /// Five seconds, not one: the finest thing on screen is a minute, and the
     /// whole scene re-renders on each tick.
     @State private var now = Date()
+    /// Set when a challenge is met, cleared when the card is dismissed.
+    @State private var unlocked: DuckChallenge?
     private let clock = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 
     private var current: CountdownEvent {
@@ -67,7 +69,11 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .tint(accent)
         .onAppear(perform: load)
-        .onReceive(clock) { now = $0 }
+        .onReceive(clock) {
+            now = $0
+            // A countdown can reach zero while the app is open and on screen.
+            checkUnlocks()
+        }
         .sheet(item: $sheet) { which in
             switch which {
             case .event:
@@ -85,7 +91,25 @@ struct ContentView: View {
                     .presentationDetents([.large])
             }
         }
-        .onChange(of: events) { _, _ in persist() }
+        .onChange(of: events) { _, _ in
+            persist()
+            checkUnlocks()
+        }
+        // An overlay, not a second `.sheet` — two presentations on one view is
+        // how you get one of them silently refusing to appear.
+        .overlay {
+            if let challenge = unlocked {
+                UnlockCard(challenge: challenge) {
+                    if let style = challenge.style {
+                        currentBinding.wrappedValue.styleID = style.id
+                    }
+                    withAnimation(.easeOut(duration: 0.2)) { unlocked = nil }
+                } onDismiss: {
+                    withAnimation(.easeOut(duration: 0.2)) { unlocked = nil }
+                }
+                .transition(.opacity)
+            }
+        }
     }
 
     // MARK: screen
@@ -213,11 +237,14 @@ struct ContentView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 14) {
                         ForEach(DuckStyle.all) { candidate in
+                            let locked = DuckUnlocks.isLocked(candidate)
                             Button {
+                                guard !locked else { return }
                                 currentBinding.wrappedValue.styleID = candidate.id
                             } label: {
                                 DuckCard(style: candidate,
-                                         selected: candidate.id == current.styleID)
+                                         selected: candidate.id == current.styleID,
+                                         locked: locked)
                             }
                             .buttonStyle(.plain)
                             .id(candidate.id)
@@ -263,6 +290,16 @@ struct ContentView: View {
     private func load() {
         events = CountdownStore.loadAll()
         index = min(index, max(0, events.count - 1))
+        checkUnlocks()
+    }
+
+    /// Run on launch and after every edit. `evaluate` banks what it finds and
+    /// returns only what was new, so the card cannot appear twice for the same
+    /// challenge however often this is called.
+    private func checkUnlocks() {
+        guard unlocked == nil,
+              let fresh = DuckUnlocks.evaluate(events, now: now).first else { return }
+        withAnimation(.easeIn(duration: 0.2)) { unlocked = fresh }
     }
 
     private func addCountdown() {

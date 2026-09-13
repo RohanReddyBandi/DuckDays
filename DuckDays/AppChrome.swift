@@ -78,6 +78,9 @@ struct DuckCard: View {
     let style: DuckStyle
     let selected: Bool
     var size: CGFloat = 96
+    /// Earned ducks stay in the row while locked, shown as a shuttered pond.
+    /// Hiding them would make the reward a surprise nobody is working towards.
+    var locked: Bool = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -85,19 +88,33 @@ struct DuckCard: View {
                      placement: .swatch)
                 .frame(width: size, height: size)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay {
+                    if locked {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(Color(rgb: 0x0A0B0F).opacity(0.82))
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: size * 0.22, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+                }
                 .overlay(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .inset(by: 2)
-                        .strokeBorder(selected ? Color(rgb: style.accent) : .clear,
+                        .strokeBorder(selected && !locked ? Color(rgb: style.accent) : .clear,
                                       lineWidth: 3)
                 )
-                .scaleEffect(selected ? 1 : 0.96)
+                .scaleEffect(selected && !locked ? 1 : 0.96)
                 .animation(.spring(response: 0.32, dampingFraction: 0.7), value: selected)
 
-            Text(style.name)
-                .font(.system(size: 11, weight: selected ? .bold : .medium,
+            Text(locked ? (DuckUnlocks.challenge(for: style)?.hint ?? "Locked")
+                        : style.name)
+                .font(.system(size: 11, weight: selected && !locked ? .bold : .medium,
                               design: .monospaced))
-                .foregroundStyle(selected ? Chrome.ink : Chrome.dim)
+                .foregroundStyle(locked ? Chrome.dim
+                                        : (selected ? Chrome.ink : Chrome.dim))
+                .lineLimit(1)
         }
     }
 }

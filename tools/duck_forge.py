@@ -454,6 +454,21 @@ def laurel(cells):
     return cells
 
 
+def goldstar(cells):
+    """A four-pointed star hanging over the crown, with two sparks either side.
+
+    Deliberately the same shape as the star field in the night sky
+    (`star_big_sprite`), so the reward reads as part of the world rather than a
+    badge bolted onto it. The sparks are stamped without an outline: at one
+    pixel each, a dark ring turns a point of light into a speck of dirt.
+    """
+    star = {(15, 0), (15, 1)} | rect(13, 2, 17, 2) | {(15, 3), (15, 4)}
+    stamp(cells, star, ACCENT)
+    cells[(15, 2)] = GLINT
+    stamp(cells, {(10, 4), (20, 4)}, ACCENT, outline=False)
+    return cells
+
+
 def mapleleaf(cells):
     """A maple leaf lying across the crown, stem trailing off to the right.
 
@@ -476,11 +491,14 @@ def mapleleaf(cells):
 
 
 def S(id, name, accessory, body, beak, cheek, bg0, bg1, accent, accent_dark,
-      ink, font, water, night, upper=False):
+      ink, font, water, night, upper=False, reward=None):
+    """`reward` names the challenge that unlocks this duck, or None if it is
+    available from the start. It is the style table's job to know this so the
+    app and the picker cannot disagree about what is locked."""
     return dict(id=id, name=name, accessory=accessory, body=body, beak=beak,
                 cheek=cheek, bg0=bg0, bg1=bg1, accent=accent,
                 accent_dark=accent_dark, ink=ink, font=font, water=water,
-                night=night, upper=upper)
+                night=night, upper=upper, reward=reward)
 
 
 STYLES = [
@@ -510,6 +528,10 @@ STYLES = [
     # water against warm foliage is what makes it read as fall rather than as
     # another desert palette, which is where Cowboy already sits.
     S("harvest",  "Maple",      mapleleaf,  "E8A24C", "B5601F", "E0708C", "E8B563", "F7E0B0", "D93A2B", "8C1F14", "4A2B14", "serif",      "6B8FA3", False),
+    # --- rewards -------------------------------------------------------------
+    # Earned, not chosen. Rarer-looking on purpose: champagne and gold over a
+    # deep twilight, against a sky that already has stars in it.
+    S("starlight", "Star",      goldstar,   "F5E6A8", "E0A030", "FFB3C8", "1A1230", "4A3570", "FFD24A", "9E6B10", "FFF4D6", "rounded",    "2E2450", True, reward="firstArrival"),
 ]
 
 
@@ -702,6 +724,7 @@ def emit_swift(path):
             f'            water: 0x{row["water"]}, waterDeep: 0x{darken(row["water"], 0.72)},',
             f'            font: .{row["font"]}, uppercaseCaption: {str(row["upper"]).lower()},'
             f' night: {str(row["night"]).lower()},',
+            f'            reward: {chr(34) + row["reward"] + chr(34) if row["reward"] else "nil"},',
             "            rows: [",
         ]
         for g in _grid(style_cells(row), W, H):

@@ -39,6 +39,10 @@ struct DuckStyle: Identifiable, Hashable {
     let uppercaseCaption: Bool
     /// Night styles get a moon and stars instead of a sun.
     let night: Bool
+    /// The challenge that unlocks this duck, or nil if it is available from the
+    /// start. Generated from the style table so the picker and the unlock rules
+    /// cannot disagree about what is locked.
+    let reward: String?
     let rows: [String]
     let blinkRows: [String]
 

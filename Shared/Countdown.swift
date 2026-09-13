@@ -17,6 +17,10 @@ struct CountdownEvent: Codable, Equatable, Identifiable {
     /// loop and animating costs it nothing worth saving.
     var motion: Bool
     var precision: Precision
+    /// When the countdown was set. Only the unlock rules read it: "a countdown
+    /// you waited for" has to mean the date was still ahead when you set it,
+    /// or typing in last week's date would earn the reward instantly.
+    var createdAt: Date
 
     /// How far down the countdown counts.
     ///
@@ -30,13 +34,14 @@ struct CountdownEvent: Codable, Equatable, Identifiable {
 
     init(id: UUID = UUID(), title: String, date: Date,
          styleID: String = DuckStyle.fallback.id, motion: Bool = true,
-         precision: Precision = .day) {
+         precision: Precision = .day, createdAt: Date = Date()) {
         self.id = id
         self.title = title
         self.date = date
         self.styleID = styleID
         self.motion = motion
         self.precision = precision
+        self.createdAt = createdAt
     }
 
     /// Tolerates payloads written by any earlier version rather than failing to
@@ -50,6 +55,11 @@ struct CountdownEvent: Codable, Equatable, Identifiable {
             ?? DuckStyle.fallback.id
         motion = try c.decodeIfPresent(Bool.self, forKey: .motion) ?? true
         precision = try c.decodeIfPresent(Precision.self, forKey: .precision) ?? .day
+        // Migrated events have no creation date. Clamping to the target keeps a
+        // countdown that already passed from counting as one somebody waited
+        // for, while one still ahead is credited from now.
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
+            ?? min(Date(), date)
     }
 
     var style: DuckStyle { DuckStyle.named(styleID) }

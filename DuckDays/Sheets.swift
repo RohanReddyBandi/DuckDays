@@ -237,7 +237,12 @@ struct AppIconSheet: View {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 20) {
                     ForEach(DuckStyle.all) { candidate in
+                        // A duck you have not earned should not be wearable on
+                        // the home screen either, or the icon picker becomes a
+                        // way around the lock.
+                        let locked = DuckUnlocks.isLocked(candidate)
                         Button {
+                            guard !locked else { return }
                             Task {
                                 if await AppIcons.apply(candidate) {
                                     selectedID = candidate.id
@@ -245,7 +250,8 @@ struct AppIconSheet: View {
                             }
                         } label: {
                             AppIconCard(style: candidate,
-                                        selected: candidate.id == selectedID)
+                                        selected: candidate.id == selectedID,
+                                        locked: locked)
                         }
                         .buttonStyle(.plain)
                     }
@@ -266,6 +272,7 @@ struct AppIconSheet: View {
 private struct AppIconCard: View {
     let style: DuckStyle
     let selected: Bool
+    var locked: Bool = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -275,17 +282,31 @@ private struct AppIconCard: View {
             }
             .frame(width: 78, height: 78)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                if locked {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color(rgb: 0x0A0B0F).opacity(0.82))
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+            }
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .inset(by: 2)
-                .strokeBorder(selected ? Color(rgb: style.accent) : .clear,
+                .strokeBorder(selected && !locked ? Color(rgb: style.accent) : .clear,
                               lineWidth: 3))
-            .scaleEffect(selected ? 1 : 0.96)
+            .scaleEffect(selected && !locked ? 1 : 0.96)
             .animation(.spring(response: 0.32, dampingFraction: 0.7), value: selected)
 
-            Text(style.name)
-                .font(.system(size: 11, weight: selected ? .bold : .medium,
+            Text(locked ? (DuckUnlocks.challenge(for: style)?.hint ?? "Locked")
+                        : style.name)
+                .font(.system(size: 11, weight: selected && !locked ? .bold : .medium,
                               design: .monospaced))
-                .foregroundStyle(selected ? Chrome.ink : Chrome.dim)
+                .foregroundStyle(locked ? Chrome.dim
+                                        : (selected ? Chrome.ink : Chrome.dim))
+                .lineLimit(1)
         }
     }
 }
@@ -300,15 +321,94 @@ struct AllDucksSheet: View {
         SheetShell(title: "\(DuckStyle.all.count) Ducks", style: style) {
             LazyVGrid(columns: columns, spacing: 20) {
                 ForEach(DuckStyle.all) { candidate in
-                    Button { styleID = candidate.id } label: {
+                    let locked = DuckUnlocks.isLocked(candidate)
+                    Button {
+                        guard !locked else { return }
+                        styleID = candidate.id
+                    } label: {
                         DuckCard(style: candidate,
-                                 selected: candidate.id == styleID)
+                                 selected: candidate.id == styleID,
+                                 locked: locked)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, Chrome.margin)
             .padding(.bottom, 30)
+        }
+    }
+}
+
+
+/// What appears the first time a challenge is met.
+///
+/// An overlay rather than a sheet: the screen already owns `.sheet(item:)` for
+/// editing, and stacking a second presentation on the same view is how you get
+/// one of them silently refusing to appear. It also just suits the moment more
+/// — a card landing on top of the app rather than a form sliding up.
+struct UnlockCard: View {
+    let challenge: DuckChallenge
+    var onWear: () -> Void
+    var onDismiss: () -> Void
+
+    @State private var landed = false
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.62)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onDismiss)
+
+            if let style = challenge.style {
+                VStack(spacing: 18) {
+                    Text("DUCK UNLOCKED")
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .tracking(2.2)
+                        .foregroundStyle(Color(rgb: style.accent))
+
+                    DuckPond(style: style, animated: true, waterLine: 0.74,
+                             duckWidth: 0.62, placement: .swatch)
+                        .frame(width: 148, height: 148)
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+
+                    VStack(spacing: 6) {
+                        Text(style.name)
+                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .foregroundStyle(Chrome.ink)
+                        Text(challenge.title)
+                            .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Color(rgb: style.accent))
+                        Text(challenge.blurb)
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundStyle(Chrome.dim)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 2)
+                    }
+
+                    VStack(spacing: 10) {
+                        Button("Wear it", action: onWear)
+                            .buttonStyle(PrimaryButtonStyle(accent: Color(rgb: style.accent)))
+                        Button("Maybe later", action: onDismiss)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Chrome.dim)
+                    }
+                    .padding(.top, 2)
+                }
+                .padding(26)
+                .background(RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .fill(Color(rgb: 0x14161D))
+                    .overlay(RoundedRectangle(cornerRadius: 32, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)))
+                .padding(.horizontal, 32)
+                .scaleEffect(landed ? 1 : 0.88)
+                .opacity(landed ? 1 : 0)
+            }
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.72)) {
+                landed = true
+            }
         }
     }
 }
