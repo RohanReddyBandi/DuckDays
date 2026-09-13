@@ -235,13 +235,27 @@ bought with entry count rather than with reloads. That is why the span stays at 
 hour however fine the step gets: `motionSpan × motionStep` is the number that must not
 shrink.
 
-**Travel is measured in sprite pixels, not points.** The amplitudes used to be a flat
-6pt and 3°, which is a third of the duck's height on a small widget and a tenth of it
-on a large one — so the motion faded out exactly where there was most room for it.
-Scaling by `unit` makes the bob the same size relative to the duck at every size. There
-are three axes, each on its own phase offset so they never peak together: rise and fall,
-roll, and a sideways drift. The ripples shift too, each row on its own offset and rate
-so the water shears rather than sliding as one sheet.
+**Travel is measured in sprite pixels, not points.** A flat point amplitude is a third
+of the duck's height on a small widget and a tenth of it on a large one, so the motion
+faded out exactly where there was most room for it. Scaling by `unit` makes the bob the
+same size relative to the duck at every size. Three axes, each on its own phase offset
+so they never peak together: rise and fall, roll, and a sideways drift. The ripples
+shear too, one pixel either way, each row on its own offset and rate.
+
+**Subtle and constant are the same two knobs turned opposite ways.** Amplitude small
+enough that no single move draws the eye; entries close enough together that one is
+always in progress. What reads as rigid is the *gap* — a big move followed by
+stillness — not the size of the step. So the amplitude came down by half and the entry
+rate doubled:
+
+| | unit | bob, peak to peak | travel per step | step every |
+| --- | --- | --- | --- | --- |
+| small | 2pt | 4.8pt | 1.2pt | 1.5s |
+| medium | 3pt | 7.2pt | 1.8pt | 1.5s |
+| large | 5pt | 12pt | 3pt | 1.5s |
+
+The transition is 1.4s of each 1.5s gap, so the duck is travelling ~93% of the time
+rather than moving and then waiting. That overlap is what removes the rigidity.
 
 ### What was measured, not assumed
 

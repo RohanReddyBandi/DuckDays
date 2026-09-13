@@ -271,26 +271,32 @@ private struct PosedDuck: View {
     /// same pixel and nothing appears to move, too coarse and the duck jumps
     /// between poses instead of travelling between them. At 0.5rad a step there
     /// are ~12 poses to a cycle, which is about the fewest that still reads as
-    /// bobbing; with entries 3s apart that puts the cycle near 40 seconds.
+    /// bobbing; with entries 1.5s apart that puts the cycle near 19 seconds.
     private var t: Double { Double(phase) * 0.5 }
 
     var body: some View {
-        // Travel is measured in sprite pixels, not points. The old amplitudes
-        // were a flat 6pt and 3°, which is a third of the duck's height on a
-        // small widget and a tenth of it on a large one — so the motion faded
-        // out exactly where there was the most room for it. Scaling by `unit`
-        // makes the bob the same size relative to the duck at every size.
+        // Travel is measured in sprite pixels, not points, so the bob is the
+        // same size relative to the duck at every widget size. A flat point
+        // amplitude is a third of the duck's height on a small widget and a
+        // tenth of it on a large one.
         //
-        // Three axes rather than one, each on its own phase offset so they
-        // never peak together: rise and fall, roll, and drift sideways the way
-        // something actually floating does.
+        // Subtle but constant is a tension between two knobs, and they get set
+        // in opposite directions: amplitude small enough that no single move
+        // draws attention, entries close enough together that there is always
+        // one in progress. What made this read as rigid before was the gap, not
+        // the size of the step — a big move followed by stillness.
+        //
+        // Three axes, each on its own phase offset so they never peak together:
+        // rise and fall, roll, and drift sideways the way something floating
+        // does. No axis is large; overlapping them is what keeps it alive.
         PixelDuckView(style: style)
-            .rotationEffect(.degrees(sin(t) * 5.5))
-            .offset(x: sin(t * 0.7 + 1.9) * unit * 2,
-                    y: sin(t + 0.6) * unit * 2.5)
-            // Just under the entry interval, so wherever a transition does get
-            // drawn the duck is still moving when the next pose arrives.
-            .animation(.easeInOut(duration: 2.4), value: phase)
+            .rotationEffect(.degrees(sin(t) * 2.2))
+            .offset(x: sin(t * 0.7 + 1.9) * unit * 0.9,
+                    y: sin(t + 0.6) * unit * 1.2)
+            // Slightly under the 1.5s entry interval: the duck is still
+            // travelling when the next pose lands, so there is no dead beat
+            // between moves. That overlap is the whole trick.
+            .animation(.easeInOut(duration: 1.4), value: phase)
     }
 }
 
@@ -304,8 +310,8 @@ private struct AnimatedDuck: View {
 
     var body: some View {
         PixelDuckView(style: style, blinking: blinking)
-            .rotationEffect(.degrees(bobbing ? 2.6 : -2.6))
-            .offset(y: bobbing ? -unit * 1.5 : unit * 1.5)
+            .rotationEffect(.degrees(bobbing ? 1.8 : -1.8))
+            .offset(y: bobbing ? -unit * 0.9 : unit * 0.9)
             .onAppear {
                 withAnimation(.easeInOut(duration: 2.1).repeatForever(autoreverses: true)) {
                     bobbing = true
@@ -332,10 +338,10 @@ private struct DriftingCloud: View {
     /// Widget-side drift, posed from the entry's phase.
     private var posed: CGFloat {
         guard let phase else { return 0 }
-        // 0.4rad against a 3-unit swing moves the cloud at least a whole pixel
-        // per step; below that it rounds to the same position and never budges.
-        // Slower than the duck on purpose — weather should lag the character.
-        return CGFloat(sin(Double(phase) * 0.4 + Double(index) * 1.3)) * unit * 3
+        // Slower and shallower than the duck on purpose — weather should lag
+        // the character, and a cloud that keeps pace with the bob reads as the
+        // whole scene sliding rather than as anything floating in it.
+        return CGFloat(sin(Double(phase) * 0.25 + Double(index) * 1.3)) * unit * 2
     }
 
     var body: some View {
@@ -343,7 +349,7 @@ private struct DriftingCloud: View {
             // Drift in whole pixels, so the cloud never lands off the grid.
             .offset(x: phase != nil ? posed
                        : (animated && drifted ? unit * 2 : -unit * 2))
-            .animation(.easeInOut(duration: 2.4), value: phase)
+            .animation(.easeInOut(duration: 1.4), value: phase)
             .onAppear {
                 guard animated else { return }
                 withAnimation(.easeInOut(duration: 9).delay(delay)
@@ -368,8 +374,11 @@ private struct Ripples: View {
     /// snapped to whole pixels — a sub-pixel slide rounds to nothing.
     private func drift(row: Int) -> CGFloat {
         guard let phase else { return 0 }
-        let t = Double(phase) * 0.35 + Double(row) * 2.1
-        return (CGFloat(sin(t)) * 2).rounded() * unit
+        let t = Double(phase) * 0.22 + Double(row) * 2.1
+        // One pixel either way, and slowly. Rounding keeps the dashes on the
+        // grid; a larger swing turned the water into the loudest thing on a
+        // widget whose subject is the duck.
+        return (CGFloat(sin(t))).rounded() * unit
     }
 
     /// (column, length) in pixel units, cycled per row. Two dashes a row, not
@@ -400,7 +409,7 @@ private struct Ripples: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 2.4), value: phase)
+        .animation(.easeInOut(duration: 1.4), value: phase)
         .onAppear {
             guard animated else { return }
             withAnimation(.easeInOut(duration: 2.6).repeatForever(autoreverses: true)) {
