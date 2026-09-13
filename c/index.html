@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A countdown, shared — Duck Days</title>
+<meta name="description" content="Someone shared a Duck Days countdown with you.">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<link rel="icon" href="../icon.png">
+<link rel="apple-touch-icon" href="../icon.png">
+<link rel="stylesheet" href="../style.css">
+<style>
+  .stage {
+    width: min(320px, 78vw);
+    aspect-ratio: 1;
+    margin: 0 auto;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(var(--sky-top, #7CC9F0), var(--sky-bottom, #BFE7FA));
+    display: grid;
+    grid-template-rows: auto 1fr;
+    text-align: center;
+  }
+  .stage .type { padding: 9% 6% 0; color: var(--ink, #16324F); }
+  .stage .count {
+    font-weight: 800;
+    font-size: clamp(28px, 9.5vw, 42px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+  .stage .who {
+    font-weight: 600;
+    font-size: clamp(11px, 3.1vw, 14px);
+    margin-top: 4px;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+  .stage.night .count, .stage.night .who { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45); }
+  .stage .duck {
+    align-self: end;
+    width: 52%;
+    margin: 0 auto -1%;
+    image-rendering: pixelated;
+    position: relative;
+    z-index: 1;
+  }
+  .stage .water {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 20%;
+    background: linear-gradient(var(--water, #3FA9E0), var(--water-deep, #2D7AA1));
+  }
+  .serif { font-family: ui-serif, Georgia, "Times New Roman", serif; }
+  .mono  { font-family: var(--mono); }
+  .plain { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+
+  .headline { text-align: center; margin-top: 30px; }
+  .headline h1 { font-size: clamp(26px, 7vw, 34px); margin: 0 0 4px; }
+  .headline .when { font-family: var(--mono); font-size: 14px; color: var(--dim); }
+  .cta { display: block; text-align: center; margin: 30px auto 0; max-width: 340px; }
+  .cta a.primary {
+    display: block;
+    background: var(--accent);
+    color: #0a0b0f;
+    font-weight: 700;
+    font-size: 16px;
+    padding: 17px;
+    border-radius: 16px;
+    text-decoration: none;
+  }
+  .cta p { margin-top: 14px; font-size: 14px; color: var(--dim); }
+  #empty { text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div id="shared" hidden>
+  <header style="padding-bottom:22px">
+    <p class="tagline" style="margin-bottom:20px">Someone shared a countdown with you</p>
+    <div class="stage" id="stage">
+      <div class="type">
+        <div class="count" id="count">—</div>
+        <div class="who" id="who"></div>
+      </div>
+      <img class="duck" id="duck" alt="">
+      <div class="water"></div>
+    </div>
+  </header>
+
+  <div class="headline">
+    <h1 id="title"></h1>
+    <div class="when" id="when"></div>
+  </div>
+
+  <div class="cta">
+    <a class="primary" id="open" href="#">Open in Duck Days</a>
+    <!-- Swap this for the App Store link once the app is live. -->
+    <p>Don't have it? <a href="../">Duck Days</a> is a countdown app for iPhone,
+    fronted by a pixel-art duck.</p>
+  </div>
+</div>
+
+<div id="empty" hidden>
+  <header>
+    <img class="duck" src="../ducks/classic.svg" alt="" style="width:140px">
+    <h1>Nothing to count</h1>
+    <p class="tagline">This link doesn't have a countdown in it. Ask whoever sent
+    it to share again from the app.</p>
+  </header>
+  <div class="cta"><a class="primary" href="../">About Duck Days</a></div>
+</div>
+
+<footer>
+  <span>© 2026 Rohan Reddy Bandi</span>
+  <span class="spacer"></span>
+  <a href="../">Support</a>
+  <a href="../privacy.html">Privacy</a>
+</footer>
+
+</div>
+
+<script>
+// The payload lives in the fragment, which browsers never send to the server.
+// That is deliberate: this page is served by GitHub and a shared countdown's
+// title should not turn up in anybody's access log. Everything below runs on
+// the reader's own device against text that never left it.
+(function () {
+  "use strict";
+
+  function decode(fragment) {
+    var b64 = fragment.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) { b64 += "="; }
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+    return JSON.parse(new TextDecoder("utf-8").decode(bytes));
+  }
+
+  // Mirrors CountdownPhrasing in Shared/Countdown.swift. Day precision counts
+  // calendar days from midnight, so an event tomorrow morning reads "1 Day" all
+  // evening; minute precision counts the real interval and shows two units.
+  function startOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  }
+
+  function dayHeadline(days) {
+    var n = Math.abs(days);
+    if (n === 0) { return "TODAY"; }
+    return n === 1 ? "1 Day" : n + " Days";
+  }
+
+  function minuteHeadline(ms) {
+    var total = Math.floor(Math.abs(ms) / 1000);
+    var d = Math.floor(total / 86400);
+    var h = Math.floor((total % 86400) / 3600);
+    var m = Math.floor((total % 3600) / 60);
+    var dw = d === 1 ? "Day" : "Days";
+    var hw = h === 1 ? "Hr" : "Hrs";
+    if (d > 0) { return h > 0 ? d + " " + dw + " " + h + " " + hw : d + " " + dw; }
+    if (h > 0) { return h + " " + hw + " " + m + " Min"; }
+    if (m > 0) { return m + " Min"; }
+    return "NOW";
+  }
+
+  function render(wire, styles) {
+    var style = styles[wire.s] || styles.classic;
+    var target = new Date(wire.d * 1000);
+    var now = new Date();
+    var minute = wire.p === "min";
+
+    var days = Math.round((startOfDay(target) - startOfDay(now)) / 86400000);
+    var head = minute ? minuteHeadline(target - now) : dayHeadline(days);
+    var arrived = minute ? head === "NOW" : days === 0;
+    var past = minute ? target < now : days < 0;
+    var tail = arrived ? "it's " + wire.t + "!"
+                       : (past ? "since " + wire.t : "until " + wire.t);
+
+    var stage = document.getElementById("stage");
+    stage.style.setProperty("--sky-top", style.skyTop);
+    stage.style.setProperty("--sky-bottom", style.skyBottom);
+    stage.style.setProperty("--ink", style.ink);
+    stage.style.setProperty("--water", style.water);
+    stage.style.setProperty("--water-deep", style.waterDeep);
+
+    stage.classList.remove("serif", "mono", "plain");
+    var face = style.font === "serif" ? "serif"
+             : style.font === "monospaced" ? "mono"
+             : style.font === "default" ? "plain" : "";
+    if (face) { stage.classList.add(face); }
+
+    document.getElementById("count").textContent = head;
+    document.getElementById("who").textContent = style.upper ? tail.toUpperCase() : tail;
+    var duck = document.getElementById("duck");
+    duck.src = "../ducks/" + (styles[wire.s] ? wire.s : "classic") + ".svg";
+    duck.alt = style.name + ", a pixel-art rubber duck";
+
+    document.getElementById("title").textContent = wire.t;
+    document.getElementById("when").textContent = target.toLocaleDateString(
+      undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    document.getElementById("open").href =
+      "duckdays://add#" + location.hash.slice(1);
+
+    document.getElementById("shared").hidden = false;
+    document.title = wire.t + " — Duck Days";
+  }
+
+  function show(id) { document.getElementById(id).hidden = false; }
+
+  var cachedStyles = null;
+
+  // Re-run on hashchange as well as on load. Opening one shared link and then
+  // another only swaps the fragment, which does not reload the page — without
+  // this the second link would sit there showing the first countdown.
+  function boot() {
+    document.getElementById("shared").hidden = true;
+    document.getElementById("empty").hidden = true;
+
+    var fragment = location.hash.slice(1);
+    if (!fragment) { show("empty"); return; }
+
+    var wire;
+    try {
+      wire = decode(fragment);
+    } catch (e) {
+      show("empty");
+      return;
+    }
+    if (!wire || typeof wire.t !== "string" || !wire.t || !isFinite(wire.d)) {
+      show("empty");
+      return;
+    }
+
+    if (cachedStyles) { render(wire, cachedStyles); return; }
+    fetch("../ducks/styles.json")
+      .then(function (r) { return r.json(); })
+      .then(function (styles) { cachedStyles = styles; render(wire, styles); })
+      .catch(function () { show("empty"); });
+  }
+
+  window.addEventListener("hashchange", boot);
+  boot();
+}());
+</script>
+</body>
+</html>
