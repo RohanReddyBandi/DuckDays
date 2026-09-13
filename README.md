@@ -69,7 +69,7 @@ python3 tools/duck_forge.py blink ducks.png     # the blink frame
 python3 tools/duck_forge.py scene decor.png     # cloud, sun, moon, star, wave
 python3 tools/duck_forge.py swift               # rewrite the Swift table
 python3 tools/duck_forge.py icon                # rewrite the default app icon
-python3 tools/duck_forge.py icons               # rewrite all 23 icon sets
+python3 tools/duck_forge.py icons               # rewrite all 24 icon sets
 ```
 
 Adding a style means adding one accessory function and one row to `STYLES`, then

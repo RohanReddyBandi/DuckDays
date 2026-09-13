@@ -68,7 +68,12 @@ struct ContentView: View {
         }
         .preferredColorScheme(.dark)
         .tint(accent)
-        .onAppear(perform: load)
+        .onAppear {
+            load()
+            #if DEBUG
+            AppIcons.verify()
+            #endif
+        }
         .onReceive(clock) {
             now = $0
             // A countdown can reach zero while the app is open and on screen.
