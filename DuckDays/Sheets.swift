@@ -90,6 +90,32 @@ struct EventEditorSheet: View {
                 // Past dates are fine — the countdown just counts the other way.
                 Chrome.meta("A date in the past counts up instead of down.", size: 11)
 
+                if let link = CountdownShare.link(for: event) {
+                    ShareLink(item: link,
+                              subject: Text(event.title),
+                              message: Text("Counting down to \(event.title) in Duck Days")) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("Share countdown")
+                                .font(.system(size: 16, weight: .semibold,
+                                              design: .rounded))
+                        }
+                        .foregroundStyle(Color(rgb: style.accent))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color(rgb: style.accent).opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+
+                    Text("Sends a link that recreates this countdown — name, date and duck.")
+                        .font(.system(size: 13, weight: .regular, design: .rounded))
+                        .foregroundStyle(Chrome.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, -14)
+                }
+
                 if canDelete {
                     Button(role: .destructive) {
                         confirmingDelete = true
@@ -404,6 +430,76 @@ struct UnlockCard: View {
                 .scaleEffect(landed ? 1 : 0.88)
                 .opacity(landed ? 1 : 0)
             }
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.72)) {
+                landed = true
+            }
+        }
+    }
+}
+
+
+/// What appears when a shared link opens the app.
+///
+/// Shows the countdown itself rather than describing it: the same scene the
+/// widget draws, so what you are agreeing to add is what you can see. Nothing
+/// is written until the button is pressed — a link should never be able to
+/// change somebody's data just by being opened.
+struct ImportCard: View {
+    let event: CountdownEvent
+    var onAdd: () -> Void
+    var onDismiss: () -> Void
+
+    @State private var landed = false
+
+    private var style: DuckStyle { event.style }
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.62)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onDismiss)
+
+            VStack(spacing: 18) {
+                Text("SHARED WITH YOU")
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .tracking(2.2)
+                    .foregroundStyle(Color(rgb: style.accent))
+
+                CountdownScene(event: event, referenceDate: Date(),
+                               size: .small, animated: true)
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(width: 168, height: 168)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+
+                VStack(spacing: 6) {
+                    Text(event.title)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(Chrome.ink)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                    Chrome.meta(event.date.formatted(
+                        .dateTime.weekday(.abbreviated).day().month(.abbreviated).year()))
+                }
+
+                VStack(spacing: 10) {
+                    Button("Add countdown", action: onAdd)
+                        .buttonStyle(PrimaryButtonStyle(accent: Color(rgb: style.accent)))
+                    Button("Not now", action: onDismiss)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Chrome.dim)
+                }
+                .padding(.top, 2)
+            }
+            .padding(26)
+            .background(RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(Color(rgb: 0x14161D))
+                .overlay(RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)))
+            .padding(.horizontal, 32)
+            .scaleEffect(landed ? 1 : 0.88)
+            .opacity(landed ? 1 : 0)
         }
         .onAppear {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.72)) {

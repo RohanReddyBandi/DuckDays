@@ -1,6 +1,8 @@
-// Minimal stand-in so the real Countdown.swift compiles outside the app.
+// Minimal stand-in so the real Shared/ sources compile outside the app.
 struct DuckStyle {
     let id: String
-    static let fallback = DuckStyle(id: "classic")
-    static func named(_ id: String) -> DuckStyle { fallback }
+    static let all = [DuckStyle(id: "classic"), DuckStyle(id: "harvest"),
+                      DuckStyle(id: "starlight")]
+    static let fallback = all[0]
+    static func named(_ id: String) -> DuckStyle { all.first { $0.id == id } ?? fallback }
 }

@@ -13,6 +13,9 @@ struct ContentView: View {
     @State private var now = Date()
     /// Set when a challenge is met, cleared when the card is dismissed.
     @State private var unlocked: DuckChallenge?
+    /// A countdown offered by a shared link. Held, not saved — nothing is
+    /// written until the card's button is pressed.
+    @State private var incoming: CountdownEvent?
     private let clock = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 
     private var current: CountdownEvent {
@@ -68,6 +71,7 @@ struct ContentView: View {
         }
         .preferredColorScheme(.dark)
         .tint(accent)
+        .onOpenURL(perform: receive)
         .onAppear {
             load()
             #if DEBUG
@@ -103,7 +107,18 @@ struct ContentView: View {
         // An overlay, not a second `.sheet` — two presentations on one view is
         // how you get one of them silently refusing to appear.
         .overlay {
-            if let challenge = unlocked {
+            if let offer = incoming {
+                ImportCard(event: offer) {
+                    events.append(offer)
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                        index = events.count - 1
+                    }
+                    incoming = nil
+                } onDismiss: {
+                    withAnimation(.easeOut(duration: 0.2)) { incoming = nil }
+                }
+                .transition(.opacity)
+            } else if let challenge = unlocked {
                 UnlockCard(challenge: challenge) {
                     if let style = challenge.style {
                         currentBinding.wrappedValue.styleID = style.id
@@ -305,6 +320,17 @@ struct ContentView: View {
         guard unlocked == nil,
               let fresh = DuckUnlocks.evaluate(events, now: now).first else { return }
         withAnimation(.easeIn(duration: 0.2)) { unlocked = fresh }
+    }
+
+    /// A shared link arriving. It can offer a countdown; it cannot save one,
+    /// and it cannot hand over a duck the recipient has not earned — otherwise
+    /// sharing would be a way around the lock the picker enforces.
+    private func receive(_ url: URL) {
+        guard var offer = CountdownShare.event(from: url) else { return }
+        if DuckUnlocks.isLocked(offer.style) {
+            offer.styleID = DuckStyle.fallback.id
+        }
+        withAnimation(.easeIn(duration: 0.2)) { incoming = offer }
     }
 
     private func addCountdown() {

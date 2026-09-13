@@ -1,0 +1,242 @@
+{
+ "arcane": {
+  "font": "serif",
+  "ink": "#F0E4FF",
+  "name": "Wizard",
+  "skyBottom": "#51268C",
+  "skyTop": "#241040",
+  "upper": true,
+  "water": "#170A2B",
+  "waterDeep": "#11071F"
+ },
+ "atelier": {
+  "font": "serif",
+  "ink": "#F5E9EE",
+  "name": "Artist",
+  "skyBottom": "#555B7A",
+  "skyTop": "#2B2F45",
+  "upper": false,
+  "water": "#1B1E2E",
+  "waterDeep": "#131621"
+ },
+ "blossom": {
+  "font": "serif",
+  "ink": "#8C3A5E",
+  "name": "Daisy",
+  "skyBottom": "#FFD0E6",
+  "skyTop": "#FFEAF3",
+  "upper": false,
+  "water": "#F5A8CC",
+  "waterDeep": "#B07993"
+ },
+ "breeze": {
+  "font": "rounded",
+  "ink": "#3A5E7A",
+  "name": "Whirly",
+  "skyBottom": "#FFE9A8",
+  "skyTop": "#FFF6D6",
+  "upper": false,
+  "water": "#7FC4E8",
+  "waterDeep": "#5B8DA7"
+ },
+ "bubblegum": {
+  "font": "rounded",
+  "ink": "#A8306B",
+  "name": "Birthday",
+  "skyBottom": "#FFC7E6",
+  "skyTop": "#FFE7F5",
+  "upper": false,
+  "water": "#F79FD0",
+  "waterDeep": "#B27296"
+ },
+ "classic": {
+  "font": "rounded",
+  "ink": "#16324F",
+  "name": "Ducky",
+  "skyBottom": "#BFE7FA",
+  "skyTop": "#7CC9F0",
+  "upper": false,
+  "water": "#3FA9E0",
+  "waterDeep": "#2D7AA1"
+ },
+ "cloud": {
+  "font": "default",
+  "ink": "#3D6B8A",
+  "name": "Angel",
+  "skyBottom": "#D9EFFA",
+  "skyTop": "#9FD4F0",
+  "upper": false,
+  "water": "#6FB8E0",
+  "waterDeep": "#5084A1"
+ },
+ "cocoa": {
+  "font": "serif",
+  "ink": "#F5E3D0",
+  "name": "Cozy",
+  "skyBottom": "#7A5540",
+  "skyTop": "#3E2B23",
+  "upper": false,
+  "water": "#2C1D18",
+  "waterDeep": "#201511"
+ },
+ "corsair": {
+  "font": "serif",
+  "ink": "#EAF4F2",
+  "name": "Pirate",
+  "skyBottom": "#2F5C63",
+  "skyTop": "#16323C",
+  "upper": true,
+  "water": "#0E2229",
+  "waterDeep": "#0A181E"
+ },
+ "cosmos": {
+  "font": "monospaced",
+  "ink": "#DFF7E6",
+  "name": "Alien",
+  "skyBottom": "#2B2F6B",
+  "skyTop": "#0D1030",
+  "upper": false,
+  "water": "#070A22",
+  "waterDeep": "#050718"
+ },
+ "ember": {
+  "font": "rounded",
+  "ink": "#FFD9C4",
+  "name": "Mischief",
+  "skyBottom": "#7A2320",
+  "skyTop": "#3B0F14",
+  "upper": true,
+  "water": "#2A0A0E",
+  "waterDeep": "#1E070A"
+ },
+ "harvest": {
+  "font": "serif",
+  "ink": "#4A2B14",
+  "name": "Maple",
+  "skyBottom": "#F7E0B0",
+  "skyTop": "#E8B563",
+  "upper": false,
+  "water": "#6B8FA3",
+  "waterDeep": "#4D6775"
+ },
+ "kitchen": {
+  "font": "serif",
+  "ink": "#6B5730",
+  "name": "Chef",
+  "skyBottom": "#E8DBC6",
+  "skyTop": "#F5EDE0",
+  "upper": false,
+  "water": "#D9C9A8",
+  "waterDeep": "#9C9179"
+ },
+ "lagoon": {
+  "font": "rounded",
+  "ink": "#064450",
+  "name": "Floaty",
+  "skyBottom": "#9BEDF2",
+  "skyTop": "#36C9D6",
+  "upper": false,
+  "water": "#1FA3B5",
+  "waterDeep": "#167582"
+ },
+ "lemon": {
+  "font": "monospaced",
+  "ink": "#8A6A1F",
+  "name": "Dapper",
+  "skyBottom": "#FFEDB0",
+  "skyTop": "#FFF9E3",
+  "upper": true,
+  "water": "#FFD98A",
+  "waterDeep": "#B89C63"
+ },
+ "midnight": {
+  "font": "rounded",
+  "ink": "#E6EAFF",
+  "name": "Frosty",
+  "skyBottom": "#40356E",
+  "skyTop": "#1B1B3A",
+  "upper": false,
+  "water": "#141230",
+  "waterDeep": "#0E0D23"
+ },
+ "mint": {
+  "font": "default",
+  "ink": "#EAF7F1",
+  "name": "Ribbon",
+  "skyBottom": "#5C9A85",
+  "skyTop": "#2E5E52",
+  "upper": true,
+  "water": "#1F4A40",
+  "waterDeep": "#16352E"
+ },
+ "moss": {
+  "font": "rounded",
+  "ink": "#E8F5D0",
+  "name": "Sprout",
+  "skyBottom": "#5E8A55",
+  "skyTop": "#2F4A2E",
+  "upper": false,
+  "water": "#203A22",
+  "waterDeep": "#172A18"
+ },
+ "olive": {
+  "font": "serif",
+  "ink": "#F0F2DC",
+  "name": "Laurel",
+  "skyBottom": "#6B7A45",
+  "skyTop": "#3A4227",
+  "upper": true,
+  "water": "#252B18",
+  "waterDeep": "#1B1F11"
+ },
+ "prairie": {
+  "font": "serif",
+  "ink": "#42210F",
+  "name": "Cowboy",
+  "skyBottom": "#F5D3A8",
+  "skyTop": "#E39B5C",
+  "upper": true,
+  "water": "#C4713C",
+  "waterDeep": "#8D512B"
+ },
+ "reef": {
+  "font": "monospaced",
+  "ink": "#05323B",
+  "name": "Scuba",
+  "skyBottom": "#63C6D6",
+  "skyTop": "#1E7A8C",
+  "upper": false,
+  "water": "#13606E",
+  "waterDeep": "#0E454F"
+ },
+ "royal": {
+  "font": "serif",
+  "ink": "#F5E6B8",
+  "name": "Royal",
+  "skyBottom": "#6E45A8",
+  "skyTop": "#3B1E6B",
+  "upper": true,
+  "water": "#2A1450",
+  "waterDeep": "#1E0E3A"
+ },
+ "starlight": {
+  "font": "rounded",
+  "ink": "#FFF4D6",
+  "name": "Star",
+  "skyBottom": "#4A3570",
+  "skyTop": "#1A1230",
+  "upper": false,
+  "water": "#2E2450",
+  "waterDeep": "#211A3A"
+ },
+ "sunny": {
+  "font": "rounded",
+  "ink": "#10394F",
+  "name": "Sporty",
+  "skyBottom": "#A8E4FB",
+  "skyTop": "#58C0EE",
+  "upper": false,
+  "water": "#2F9BD1",
+  "waterDeep": "#227096"
+ }
+}

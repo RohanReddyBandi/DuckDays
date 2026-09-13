@@ -102,13 +102,42 @@ Version 1.0 stored exactly one event under its own key. The first read migrates 
 into a one-item list and **leaves the old key in place**, so a rollback still finds it.
 
 ```bash
-sh tools/test-phrasing.sh   # phrasing + tolerant decoding, no simulator needed
+sh tools/test-shared.sh   # phrasing, decoding and share links, no simulator needed
 ```
 
-That script compiles the real `Shared/Countdown.swift` for the Mac against a stub
-`DuckStyle` and asserts on the output. It covers both precisions, the singular/plural
-and unit-dropping branches, both directions, and decoding a 1.0 payload that has
-neither an `id` nor a `precision`.
+That script compiles the real `Shared/` sources for the Mac against a stub `DuckStyle`
+and asserts on the output. It covers both precisions, the singular/plural and
+unit-dropping branches, both directions, decoding a 1.0 payload that has neither an
+`id` nor a `precision`, and the share-link round trip.
+
+## Sharing a countdown
+
+A countdown goes out as a link that recreates it — name, date, duck and precision:
+
+    https://rohanreddybandi.github.io/DuckDays/c/#<payload>
+
+**The payload is in the fragment, never the query.** A fragment is not sent to the
+server, so the title and date of a shared countdown never reach the host serving the
+page. For an app whose privacy policy says it collects nothing, a query string would
+put somebody's "chemo ends" in a GitHub access log.
+
+The link works either way round. With the app installed, iOS offers to open it; the
+page's button hands off to `duckdays://add#<payload>`, the scheme registered in
+`DuckDays/Info.plist`. Without the app, `docs/c/` renders the countdown itself — the
+right duck on its own sky, in its own typeface, with the caption cased the way that
+style cases it — from `docs/ducks/styles.json`, which the forge emits so the page and
+the app cannot disagree about what a duck looks like.
+
+Three things an import deliberately does **not** carry over:
+
+- **The sender's `id`.** A fresh one, so two people's copies are separate countdowns.
+- **The sender's `createdAt`.** Stamped at import, so a link to something that already
+  happened cannot hand over the "you waited for it" reward.
+- **An unearned duck.** If the shared style is a locked reward, the import falls back
+  to Ducky. Otherwise sharing would be a way around the lock the picker enforces.
+
+Nothing is written until the card's button is pressed. A link can offer a countdown;
+it cannot change anybody's data just by being opened.
 
 ## The scene
 

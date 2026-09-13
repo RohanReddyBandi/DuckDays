@@ -12,6 +12,7 @@ rather than fourteen. That keeps the files small enough to serve uncompressed
 and crisp at any size, which a scaled-up PNG would not be.
 """
 
+import json
 import os
 import re
 import sys
@@ -20,9 +21,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TABLE = os.path.join(ROOT, "Shared", "DuckStyles+Generated.swift")
 OUT = os.path.join(ROOT, "docs", "ducks")
 
-# The ducks the support page shows, in order. A subset on purpose: the page is
-# an invitation, not the catalogue. The app has all of them.
+# The ducks the support page's strip shows, in order. A subset on purpose: that
+# page is an invitation, not the catalogue.
 FEATURED = ["classic", "blossom", "arcane", "reef", "ember", "cosmos"]
+
+# Every style is emitted regardless, because the shared-countdown page has to be
+# able to draw whichever duck turns up in a link.
 
 # Same mapping as DuckStyle.color(for:) in Shared/DuckStyle.swift. Two of these
 # are fixed rather than per-style, exactly as they are there.
@@ -51,6 +55,9 @@ def parse_styles(text):
             "name": re.search(r'name:\s*"([^"]+)"', block).group(1),
             "colors": colors,
             "rows": re.findall(r'"([^"]*)"', rows.group(1)),
+            "font": re.search(r"font:\s*\.(\w+)", block).group(1),
+            "upper": re.search(r"uppercaseCaption:\s*(\w+)", block).group(1) == "true",
+            "night": re.search(r"night:\s*(\w+)", block).group(1) == "true",
         }
     return styles
 
@@ -100,13 +107,35 @@ def skies(styles):
         "   One sky per duck, taken from the same table the app compiles. */",
         "",
     ]
-    for ident in FEATURED:
+    for ident in sorted(styles):
         colors = styles[ident]["colors"]
         lines.append(
             f'.sky-{ident} {{ --sky-top: #{colors["bgTop"].upper()};'
             f' --sky-bottom: #{colors["bgBottom"].upper()}; }}'
         )
     return "\n".join(lines) + "\n"
+
+
+def metadata(styles):
+    """What the shared-countdown page needs to draw a scene faithfully.
+
+    Emitted rather than hand-copied for the same reason as the skies: the page
+    has to agree with the app about what a duck looks like, and hex typed twice
+    drifts. Only the fields the page actually renders.
+    """
+    return {
+        ident: {
+            "name": s["name"],
+            "ink": "#" + s["colors"]["ink"].upper(),
+            "skyTop": "#" + s["colors"]["bgTop"].upper(),
+            "skyBottom": "#" + s["colors"]["bgBottom"].upper(),
+            "water": "#" + s["colors"]["water"].upper(),
+            "waterDeep": "#" + s["colors"]["waterDeep"].upper(),
+            "font": s["font"],
+            "upper": s["upper"],
+        }
+        for ident, s in sorted(styles.items())
+    }
 
 
 def main():
@@ -118,7 +147,7 @@ def main():
         sys.exit(f"no such style in {TABLE}: {', '.join(missing)}")
 
     os.makedirs(OUT, exist_ok=True)
-    for ident in FEATURED:
+    for ident in styles:
         path = os.path.join(OUT, ident + ".svg")
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(svg(styles[ident]))
@@ -127,7 +156,12 @@ def main():
     path = os.path.join(OUT, "skies.css")
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(skies(styles))
-    print(f"{os.path.relpath(path, ROOT)}  {len(FEATURED)} skies")
+    print(f"{os.path.relpath(path, ROOT)}  {len(styles)} skies")
+
+    path = os.path.join(OUT, "styles.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(metadata(styles), handle, indent=1, sort_keys=True)
+    print(f"{os.path.relpath(path, ROOT)}  {len(styles)} styles")
 
 
 if __name__ == "__main__":

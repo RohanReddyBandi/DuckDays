@@ -58,5 +58,54 @@ if let decoded = try? JSONDecoder().decode(CountdownEvent.self, from: Data(legac
     print("FAIL  legacy payload did not decode")
 }
 
+print("\n— share links —")
+let shared = CountdownEvent(title: "Fall Break", date: now.addingTimeInterval(28*day),
+                            styleID: "harvest", precision: .minute)
+let link = CountdownShare.link(for: shared)!
+check(link.absoluteString.hasPrefix("https://rohanreddybandi.github.io/DuckDays/c/#")
+        ? "prefixed" : link.absoluteString, "prefixed", "link shape")
+check(link.absoluteString.contains("?") ? "has query" : "fragment only",
+      "fragment only", "payload is in the fragment")
+
+if let back = CountdownShare.event(from: link) {
+    check(back.title, "Fall Break", "title round-trips")
+    check(back.styleID, "harvest", "duck round-trips")
+    check(back.precision.rawValue, "minute", "precision round-trips")
+    check(abs(back.date.timeIntervalSince(shared.date)) < 1 ? "same" : "drifted",
+          "same", "date round-trips")
+    check(back.id == shared.id ? "same" : "fresh", "fresh", "gets a new id")
+    // The property is that import stamps it, not that it matches the sender.
+    check(abs(back.createdAt.timeIntervalSinceNow) < 5 ? "now" : "copied",
+          "now", "createdAt is stamped at import")
+} else {
+    failures += 1; print("FAIL  link did not decode")
+}
+
+// An imported countdown whose date has already passed must not earn the reward.
+if let old = CountdownShare.event(from:
+        CountdownShare.link(for: CountdownEvent(title: "gone by",
+            date: now.addingTimeInterval(-10*day), styleID: "classic"))!) {
+    check(old.createdAt < old.date ? "would unlock" : "cannot unlock",
+          "cannot unlock", "past import cannot farm the reward")
+}
+
+check(CountdownShare.event(from: URL(string: "duckdays://add#\(CountdownShare.payload(for: shared))")!)?.title ?? "nil",
+      "Fall Break", "app scheme link decodes")
+check(CountdownShare.event(from: URL(string: "duckdays://add?d=\(CountdownShare.payload(for: shared))")!)?.title ?? "nil",
+      "Fall Break", "query fallback decodes")
+
+let emoji = CountdownEvent(title: "Rohan\u{2019}s trip 🦆", date: now.addingTimeInterval(day))
+check(CountdownShare.event(from: CountdownShare.link(for: emoji)!)?.title ?? "nil",
+      "Rohan\u{2019}s trip 🦆", "non-ASCII survives base64url")
+
+check(CountdownShare.event(from: "not-a-payload") == nil ? "nil" : "decoded",
+      "nil", "garbage rejected")
+check(CountdownShare.event(from: URL(string: "duckdays://add")!) == nil ? "nil" : "decoded",
+      "nil", "empty link rejected")
+let unknownDuck = CountdownShare.payload(for:
+    CountdownEvent(title: "x", date: now, styleID: "duck-from-the-future"))
+check(CountdownShare.event(from: unknownDuck)?.styleID ?? "nil", "classic",
+      "unknown duck falls back")
+
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")
 exit(failures == 0 ? 0 : 1)
