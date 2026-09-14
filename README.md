@@ -112,7 +112,8 @@ unit-dropping branches, both directions, decoding a 1.0 payload that has neither
 
 ## Sharing a countdown
 
-A countdown goes out as a link that recreates it — name, date, duck and precision:
+Tap the countdown, then **Share countdown**. It goes out as a link that recreates it
+— name, date, duck and precision:
 
     https://rohanreddybandi.github.io/DuckDays/c/#<payload>
 
@@ -387,8 +388,9 @@ python3 tools/duck_forge.py icon
 The main screen is the finished thing, not the editor for it. The countdown is the
 hero and takes the top third; everything else is one tap away:
 
-- **Tap the countdown** → widget sheet (size, and how to add it)
-- **Tap the event card** → event sheet (title, calendar)
+- **Tap the countdown** → widget sheet: everything you do *to* it — size, motion,
+  app icon, share, delete
+- **Tap the event card** → event sheet: everything it *is* — title, date, precision
 - **See all** → the full grid of ducks
 
 Edits save as they happen, so the primary button is about adding the widget rather

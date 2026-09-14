@@ -33,15 +33,14 @@ private struct SheetShell<Content: View>: View {
     }
 }
 
+/// Just what the countdown *is*: its name, its date, how finely it counts.
+/// Acting on it — sharing, deleting — lives in the widget sheet alongside the
+/// other per-countdown settings.
 struct EventEditorSheet: View {
     @Binding var event: CountdownEvent
     let style: DuckStyle
-    var canDelete: Bool = false
-    var onDelete: () -> Void = {}
 
-    @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
-    @State private var confirmingDelete = false
 
     var body: some View {
         SheetShell(title: "Event", style: style) {
@@ -90,60 +89,6 @@ struct EventEditorSheet: View {
                 // Past dates are fine — the countdown just counts the other way.
                 Chrome.meta("A date in the past counts up instead of down.", size: 11)
 
-                if let link = CountdownShare.link(for: event) {
-                    ShareLink(item: link,
-                              subject: Text(event.title),
-                              message: Text("Counting down to \(event.title) in Duck Days")) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 15, weight: .semibold))
-                            Text("Share countdown")
-                                .font(.system(size: 16, weight: .semibold,
-                                              design: .rounded))
-                        }
-                        .foregroundStyle(Color(rgb: style.accent))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color(rgb: style.accent).opacity(0.12)))
-                    }
-                    .buttonStyle(.plain)
-
-                    Text("Sends a link that recreates this countdown — name, date and duck.")
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
-                        .foregroundStyle(Chrome.dim)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, -14)
-                }
-
-                if canDelete {
-                    Button(role: .destructive) {
-                        confirmingDelete = true
-                    } label: {
-                        Text("Delete countdown")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Color(rgb: 0xFF6B6B))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 15)
-                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color(rgb: 0xFF6B6B).opacity(0.12)))
-                    }
-                    .buttonStyle(.plain)
-                    .confirmationDialog("Delete \(event.title)?", isPresented: $confirmingDelete,
-                                        titleVisibility: .visible) {
-                        Button("Delete", role: .destructive) {
-                            // Dismiss first: the sheet is bound to the event
-                            // about to be removed, and letting it re-render
-                            // against a deleted index is how you get a blank
-                            // flash on the way out.
-                            dismiss()
-                            onDelete()
-                        }
-                        Button("Keep it", role: .cancel) {}
-                    } message: {
-                        Text("Widgets showing it will fall back to your first countdown.")
-                    }
-                }
             }
             .padding(.horizontal, Chrome.margin)
             .padding(.bottom, 30)
@@ -152,10 +97,18 @@ struct EventEditorSheet: View {
     }
 }
 
+/// Everything you do *to* a countdown rather than everything it is: the widget
+/// it renders into, the icon on the home screen, sending it to someone,
+/// throwing it away. The editor next door owns the name and the date.
 struct WidgetSheet: View {
     @Binding var size: CountdownScene.Size
     @Binding var event: CountdownEvent
     let style: DuckStyle
+    var canDelete: Bool = false
+    var onDelete: () -> Void = {}
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmingDelete = false
 
     static let stageHeight: CGFloat = 200
 
@@ -205,6 +158,14 @@ struct WidgetSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
+                VStack(alignment: .leading, spacing: 6) {
+                    Chrome.meta("ADDING IT")
+                    Text("Long-press your home screen, tap the **+**, search for **Duck Days**, and pick a size.")
+                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .foregroundStyle(Chrome.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 // A push rather than another sheet: SheetShell already owns a
                 // navigation stack, and stacking modals to reach a settings
                 // choice two levels down is worse than a plain row.
@@ -231,12 +192,68 @@ struct WidgetSheet: View {
                 }
                 .buttonStyle(.plain)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Chrome.meta("ADDING IT")
-                    Text("Long-press your home screen, tap the **+**, search for **Duck Days**, and pick a size.")
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundStyle(Chrome.dim)
-                        .fixedSize(horizontal: false, vertical: true)
+                if let link = CountdownShare.link(for: event) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ShareLink(item: link,
+                                  subject: Text(event.title),
+                                  message: Text("Counting down to \(event.title) in Duck Days")) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 15, weight: .semibold))
+                                Text("Share countdown")
+                                    .font(.system(size: 16, weight: .semibold,
+                                                  design: .rounded))
+                            }
+                            // Neutral, not accent-tinted. Several ducks have a
+                            // red accent, and next to a red Delete an equally
+                            // red Share is a trap. Red means one thing on this
+                            // screen. It also keeps the accent to the two
+                            // places it is meant to appear: the selected duck
+                            // and the primary button.
+                            .foregroundStyle(Chrome.ink)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Chrome.card))
+                        }
+                        .buttonStyle(.plain)
+
+                        Text("Sends a link that recreates this countdown — name, date and duck.")
+                            .font(.system(size: 13, weight: .regular, design: .rounded))
+                            .foregroundStyle(Chrome.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                // Last, and the only red on the screen. Nothing sits below it
+                // to be reached past by accident.
+                if canDelete {
+                    Button(role: .destructive) {
+                        confirmingDelete = true
+                    } label: {
+                        Text("Delete countdown")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color(rgb: 0xFF6B6B))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color(rgb: 0xFF6B6B).opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .confirmationDialog("Delete \(event.title)?", isPresented: $confirmingDelete,
+                                        titleVisibility: .visible) {
+                        Button("Delete", role: .destructive) {
+                            // Dismiss first: the sheet is bound to the event
+                            // about to be removed, and letting it re-render
+                            // against a deleted index is how you get a blank
+                            // flash on the way out.
+                            dismiss()
+                            onDelete()
+                        }
+                        Button("Keep it", role: .cancel) {}
+                    } message: {
+                        Text("Widgets showing it will fall back to your first countdown.")
+                    }
                 }
             }
             .padding(.horizontal, Chrome.margin)

@@ -86,15 +86,17 @@ struct ContentView: View {
         .sheet(item: $sheet) { which in
             switch which {
             case .event:
-                EventEditorSheet(event: currentBinding, style: style,
-                                 canDelete: events.count > 1,
-                                 onDelete: deleteCurrent)
+                EventEditorSheet(event: currentBinding, style: style)
                     .presentationDetents([.large])
             case .widget:
-                WidgetSheet(size: $previewSize, event: currentBinding, style: style)
+                WidgetSheet(size: $previewSize, event: currentBinding, style: style,
+                            canDelete: events.count > 1, onDelete: deleteCurrent)
                     // An explicit height rather than .medium: the content is a
-                    // known size, and .medium clipped the controls.
-                    .presentationDetents([.height(540), .large])
+                    // known size, and .medium clipped the controls. Raised from
+                    // 540 when share and delete moved in — at 540 they sat two
+                    // scrolls below the fold, which is a poor home for the
+                    // actions somebody opened this sheet to reach.
+                    .presentationDetents([.height(620), .large])
             case .allDucks:
                 AllDucksSheet(styleID: currentBinding.styleID, style: style)
                     .presentationDetents([.large])
