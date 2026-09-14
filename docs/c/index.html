@@ -141,7 +141,8 @@
 
   // Mirrors CountdownPhrasing in Shared/Countdown.swift. Day precision counts
   // calendar days from midnight, so an event tomorrow morning reads "1 Day" all
-  // evening; minute precision counts the real interval and shows two units.
+  // evening. Minute precision cascades: days while more than a day is left,
+  // then hours and minutes, then minutes and seconds, then seconds.
   function startOfDay(d) {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   }
@@ -157,11 +158,11 @@
     var d = Math.floor(total / 86400);
     var h = Math.floor((total % 86400) / 3600);
     var m = Math.floor((total % 3600) / 60);
-    var dw = d === 1 ? "Day" : "Days";
-    var hw = h === 1 ? "Hr" : "Hrs";
-    if (d > 0) { return h > 0 ? d + " " + dw + " " + h + " " + hw : d + " " + dw; }
-    if (h > 0) { return h + " " + hw + " " + m + " Min"; }
-    if (m > 0) { return m + " Min"; }
+    var sec = total % 60;
+    if (d > 0) { return d === 1 ? "1 Day" : d + " Days"; }
+    if (h > 0) { return h + " " + (h === 1 ? "Hr" : "Hrs") + " " + m + " Min"; }
+    if (m > 0) { return m + " Min " + sec + " Sec"; }
+    if (sec > 0) { return sec + " Sec"; }
     return "NOW";
   }
 
@@ -210,6 +211,7 @@
   function show(id) { document.getElementById(id).hidden = false; }
 
   var cachedStyles = null;
+  var ticker = null;
 
   // Re-run on hashchange as well as on load. Opening one shared link and then
   // another only swaps the fragment, which does not reload the page — without
@@ -233,10 +235,21 @@
       return;
     }
 
-    if (cachedStyles) { render(wire, cachedStyles); return; }
+    // A minute countdown shows seconds near the end, so it re-renders every
+    // second like the app does. Cleared first so a second link opened in the
+    // same tab does not leave the first one ticking underneath it.
+    if (ticker) { clearInterval(ticker); ticker = null; }
+    function start(styles) {
+      render(wire, styles);
+      if (wire.p === "min") {
+        ticker = setInterval(function () { render(wire, styles); }, 1000);
+      }
+    }
+
+    if (cachedStyles) { start(cachedStyles); return; }
     fetch("../ducks/styles.json")
       .then(function (r) { return r.json(); })
-      .then(function (styles) { cachedStyles = styles; render(wire, styles); })
+      .then(function (styles) { cachedStyles = styles; start(styles); })
       .catch(function () { show("empty"); });
   }
 

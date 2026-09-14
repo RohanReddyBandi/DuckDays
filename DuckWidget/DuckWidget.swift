@@ -40,6 +40,13 @@ struct DuckProvider: AppIntentTimelineProvider {
     private static let minuteStep: TimeInterval = 60
     private static let minuteSpan = 60
 
+    /// Inside the last hour the headline is counting seconds, and a minute
+    /// between entries would leave them frozen on whatever they read when the
+    /// timeline was built. Two seconds is as fine as is worth asking for — the
+    /// widget host coalesces below that on real hardware anyway.
+    private static let closingStep: TimeInterval = 2
+    private static let closingWindow: TimeInterval = 3600
+
     func timeline(for configuration: SelectCountdownIntent,
                   in context: Context) async -> Timeline<DuckEntry> {
         let event = CountdownStore.event(id: configuration.countdown?.id)
@@ -51,12 +58,27 @@ struct DuckProvider: AppIntentTimelineProvider {
         // from that, so entry density buys text freshness and duck motion at
         // the same time. Motion is the denser of the two, so it wins when both
         // are on rather than the two being added together.
+        let untilTarget = event.date.timeIntervalSince(now)
+        let closingIn = event.precision == .minute
+            && untilTarget > 0 && untilTarget < Self.closingWindow
+
         var entries: [DuckEntry] = []
         if event.motion {
+            // 1.5s is already finer than the seconds on screen need, so motion
+            // covers the run-in to zero without any help.
             for step in 0..<Self.motionSpan {
                 entries.append(DuckEntry(
                     date: now.addingTimeInterval(Double(step) * Self.motionStep),
                     event: event, phase: step))
+            }
+        } else if closingIn {
+            // Carry on a little past zero so the widget shows the moment
+            // arriving rather than stopping one entry short of it.
+            let span = Int((untilTarget + 120) / Self.closingStep)
+            for step in 0..<max(1, min(span, 1800)) {
+                entries.append(DuckEntry(
+                    date: now.addingTimeInterval(Double(step) * Self.closingStep),
+                    event: event))
             }
         } else if event.precision == .minute {
             for step in 0..<Self.minuteSpan {
@@ -81,7 +103,7 @@ struct DuckProvider: AppIntentTimelineProvider {
         }
 
         let refresh: Date
-        if event.motion || event.precision == .minute {
+        if event.motion || event.precision == .minute || closingIn {
             refresh = lastScheduled
         } else {
             refresh = calendar.date(byAdding: .day, value: 1, to: today)
@@ -108,7 +130,8 @@ struct DuckWidgetEntryView: View {
         let parts = entry.event.remaining(from: entry.date)
         if parts.days > 0 { return "\(parts.days)d" }
         if parts.hours > 0 { return "\(parts.hours)h" }
-        return "\(parts.minutes)m"
+        if parts.minutes > 0 { return "\(parts.minutes)m" }
+        return "\(parts.seconds)s"
     }
 
     /// The only chrome: one hairline of the same near-black the sprites are
@@ -128,7 +151,13 @@ struct DuckWidgetEntryView: View {
                 }
             }
             .containerBackground(for: .widget) {
-                if renderingMode == .fullColor { style.sky } else { Color.clear }
+                // Dark, not the sky. The sky is already painted as the first
+                // layer of the scene and fills the widget edge to edge, so on
+                // the home screen this is never seen. Where it IS seen is the
+                // Edit Widget sheet, which uses the container background as its
+                // backdrop — and a pale sky there sat under white dark-mode text
+                // and a yellow value, so every label on the sheet blended in.
+                if renderingMode == .fullColor { Color(rgb: 0x14161D) } else { Color.clear }
             }
     }
 

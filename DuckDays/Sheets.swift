@@ -3,7 +3,7 @@ import SwiftUI
 /// Editing lives in sheets so the main screen can be the finished thing rather
 /// than the editor for it.
 enum DuckSheet: String, Identifiable {
-    case event, widget, allDucks
+    case event, widget, allDucks, settings
     var id: String { rawValue }
 }
 
@@ -97,20 +97,20 @@ struct EventEditorSheet: View {
     }
 }
 
-/// Everything you do *to* a countdown rather than everything it is: the widget
-/// it renders into, the icon on the home screen, sending it to someone,
-/// throwing it away. The editor next door owns the name and the date.
+/// Just the widget: what it will look like, how big, whether it moves, how to
+/// put one on the home screen, and how to send this countdown to someone.
+///
+/// Nothing app-wide lives here any more. The icon picker and the delete button
+/// moved to Settings — this sheet opens from "Add Duck Widget", and everything
+/// on it should be something you came here to do.
 struct WidgetSheet: View {
     @Binding var size: CountdownScene.Size
     @Binding var event: CountdownEvent
     let style: DuckStyle
-    var canDelete: Bool = false
-    var onDelete: () -> Void = {}
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var confirmingDelete = false
 
     static let stageHeight: CGFloat = 200
+
+    private var accent: Color { Color(rgb: style.accent) }
 
     private var aspect: CGFloat {
         switch size {
@@ -138,7 +138,7 @@ struct WidgetSheet: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Chrome.meta("SIZE")
-                    SizePicker(selection: $size, accent: Color(rgb: style.accent))
+                    SizePicker(selection: $size, accent: accent)
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
@@ -150,47 +150,35 @@ struct WidgetSheet: View {
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(Chrome.ink)
                     }
-                    .tint(Color(rgb: style.accent))
+                    .tint(accent)
 
-                    Text("iOS may slow this down to save energy.")
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
-                        .foregroundStyle(Chrome.dim)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Chrome.meta("ADDING IT")
-                    Text("Long-press your home screen, tap the **+**, search for **Duck Days**, and pick a size.")
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
-                        .foregroundStyle(Chrome.dim)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                // A push rather than another sheet: SheetShell already owns a
-                // navigation stack, and stacking modals to reach a settings
-                // choice two levels down is worse than a plain row.
-                NavigationLink {
-                    AppIconSheet(style: style)
-                } label: {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("App icon")
-                                .font(.system(size: 16, weight: .semibold,
-                                              design: .rounded))
-                                .foregroundStyle(Chrome.ink)
-                            Chrome.meta(AppIcons.current.name)
-                        }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .semibold))
+                    // Only while it is on. It is a caveat about a thing that is
+                    // happening; under an off switch it is a caveat about
+                    // nothing, and it made the row look like a warning.
+                    if event.motion {
+                        Text("iOS may slow this down to save energy.")
+                            .font(.system(size: 13, weight: .regular, design: .rounded))
                             .foregroundStyle(Chrome.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .transition(.opacity)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Chrome.card))
                 }
-                .buttonStyle(.plain)
+                .animation(.easeInOut(duration: 0.2), value: event.motion)
+
+                // Numbered and in full ink. This was one dim sentence, which is
+                // the wrong weight for the only instructions in the app — it is
+                // the thing somebody opens this sheet not knowing how to do.
+                VStack(alignment: .leading, spacing: 12) {
+                    Chrome.meta("PUTTING ONE ON YOUR HOME SCREEN")
+                    step(1, "Touch and hold an empty part of your home screen")
+                    step(2, "Tap **Edit**, then **Add Widget**")
+                    step(3, "Search for **Duck Days** and pick a size")
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Chrome.card))
 
                 if let link = CountdownShare.link(for: event) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -204,12 +192,6 @@ struct WidgetSheet: View {
                                     .font(.system(size: 16, weight: .semibold,
                                                   design: .rounded))
                             }
-                            // Neutral, not accent-tinted. Several ducks have a
-                            // red accent, and next to a red Delete an equally
-                            // red Share is a trap. Red means one thing on this
-                            // screen. It also keeps the accent to the two
-                            // places it is meant to appear: the selected duck
-                            // and the primary button.
                             .foregroundStyle(Chrome.ink)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 15)
@@ -224,41 +206,137 @@ struct WidgetSheet: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+            }
+            .padding(.horizontal, Chrome.margin)
+            .padding(.bottom, 30)
+        }
+    }
 
-                // Last, and the only red on the screen. Nothing sits below it
-                // to be reached past by accident.
-                if canDelete {
-                    Button(role: .destructive) {
-                        confirmingDelete = true
+    private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text("\(number)")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(rgb: 0x0A0B0F))
+                .frame(width: 22, height: 22)
+                .background(Circle().fill(accent))
+            Text(text)
+                .font(.system(size: 15, weight: .regular, design: .rounded))
+                .foregroundStyle(Chrome.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+/// Everything that is not about one widget: the home screen icon, getting rid
+/// of a countdown, and where to find help.
+struct SettingsSheet: View {
+    let event: CountdownEvent
+    let style: DuckStyle
+    var canDelete: Bool = false
+    var onDelete: () -> Void = {}
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmingDelete = false
+
+    private var version: String {
+        let info = Bundle.main.infoDictionary
+        let marketing = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = info?["CFBundleVersion"] as? String ?? "—"
+        return "\(marketing) (\(build))"
+    }
+
+    var body: some View {
+        SheetShell(title: "Settings", style: style) {
+            VStack(spacing: 26) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Chrome.meta("APPEARANCE")
+                    // A push rather than another sheet: SheetShell already owns
+                    // a navigation stack, and stacking modals to reach a
+                    // settings choice two levels down is worse than a row.
+                    NavigationLink {
+                        AppIconSheet(style: style)
                     } label: {
-                        Text("Delete countdown")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Color(rgb: 0xFF6B6B))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 15)
-                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color(rgb: 0xFF6B6B).opacity(0.12)))
+                        SettingsRow(title: "App icon", detail: AppIcons.current.name)
                     }
                     .buttonStyle(.plain)
-                    .confirmationDialog("Delete \(event.title)?", isPresented: $confirmingDelete,
-                                        titleVisibility: .visible) {
-                        Button("Delete", role: .destructive) {
-                            // Dismiss first: the sheet is bound to the event
-                            // about to be removed, and letting it re-render
-                            // against a deleted index is how you get a blank
-                            // flash on the way out.
-                            dismiss()
-                            onDelete()
+                }
+
+                if canDelete {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Chrome.meta("THIS COUNTDOWN")
+                        // Named, because this sheet is not obviously about one
+                        // countdown and a bare "Delete" here could plausibly
+                        // mean all of them.
+                        Button(role: .destructive) {
+                            confirmingDelete = true
+                        } label: {
+                            SettingsRow(title: "Delete \(event.title)",
+                                        detail: nil, tint: Color(rgb: 0xFF6B6B),
+                                        chevron: false)
                         }
-                        Button("Keep it", role: .cancel) {}
-                    } message: {
-                        Text("Widgets showing it will fall back to your first countdown.")
+                        .buttonStyle(.plain)
+                        .confirmationDialog("Delete \(event.title)?",
+                                            isPresented: $confirmingDelete,
+                                            titleVisibility: .visible) {
+                            Button("Delete", role: .destructive) {
+                                // Dismiss first: this sheet reads the event
+                                // about to be removed, and letting it
+                                // re-render against a deleted index is how you
+                                // get a blank flash on the way out.
+                                dismiss()
+                                onDelete()
+                            }
+                            Button("Keep it", role: .cancel) {}
+                        } message: {
+                            Text("Widgets showing it will fall back to your first countdown.")
+                        }
                     }
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Chrome.meta("ABOUT")
+                    Link(destination: URL(string: "https://rohanreddybandi.github.io/DuckDays/")!) {
+                        SettingsRow(title: "Help and contact", detail: nil)
+                    }
+                    .buttonStyle(.plain)
+                    Link(destination: URL(string: "https://rohanreddybandi.github.io/DuckDays/privacy.html")!) {
+                        SettingsRow(title: "Privacy", detail: "Nothing is collected")
+                    }
+                    .buttonStyle(.plain)
+                    SettingsRow(title: "Version", detail: version, chevron: false)
                 }
             }
             .padding(.horizontal, Chrome.margin)
             .padding(.bottom, 30)
         }
+    }
+}
+
+private struct SettingsRow: View {
+    let title: String
+    var detail: String?
+    var tint: Color = Chrome.ink
+    var chevron: Bool = true
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(tint)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            if let detail { Chrome.meta(detail) }
+            if chevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Chrome.dim)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 15)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Chrome.card))
     }
 }
 

@@ -48,9 +48,10 @@ struct CountdownEvent: Codable, Equatable, Identifiable {
     /// decode — a throw here would silently empty somebody's widget.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         title = try c.decode(String.self, forKey: .title)
         date = try c.decode(Date.self, forKey: .date)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id)
+            ?? Self.legacyID(title: title, date: date)
         styleID = try c.decodeIfPresent(String.self, forKey: .styleID)
             ?? DuckStyle.fallback.id
         motion = try c.decodeIfPresent(Bool.self, forKey: .motion) ?? true
@@ -63,6 +64,40 @@ struct CountdownEvent: Codable, Equatable, Identifiable {
     }
 
     var style: DuckStyle { DuckStyle.named(styleID) }
+
+    /// A stable id for an event written before ids existed, derived from what
+    /// the event *is* instead of rolled at random.
+    ///
+    /// Both the app and the widget decode that payload. With `UUID()` here each
+    /// process invented its own id for the same countdown, so a widget
+    /// configured against one could never find it in the other. Deriving it
+    /// from title and date means every decode, in every process, agrees.
+    ///
+    /// FNV-1a rather than a cryptographic hash on purpose: this is an identifier,
+    /// not a secret, and the app's export-compliance answer is that it contains
+    /// no cryptography at all.
+    static func legacyID(title: String, date: Date) -> UUID {
+        let seed = Array("\(title)|\(date.timeIntervalSince1970)".utf8)
+        func fnv(_ basis: UInt64) -> UInt64 {
+            var hash = basis
+            for byte in seed {
+                hash ^= UInt64(byte)
+                hash = hash &* 0x100000001b3
+            }
+            return hash
+        }
+        let high = fnv(0xcbf29ce484222325)
+        let low = fnv(0x84222325cbf29ce4)
+        var b = [UInt8](repeating: 0, count: 16)
+        for i in 0..<8 {
+            b[i] = UInt8(truncatingIfNeeded: high >> (UInt64(i) * 8))
+            b[8 + i] = UInt8(truncatingIfNeeded: low >> (UInt64(i) * 8))
+        }
+        b[6] = (b[6] & 0x0F) | 0x50      // version nibble: name-based
+        b[8] = (b[8] & 0x3F) | 0x80      // RFC 4122 variant
+        return UUID(uuid: (b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+                           b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]))
+    }
 
     static let placeholder = CountdownEvent(
         title: "Something good",
@@ -80,12 +115,20 @@ struct CountdownEvent: Codable, Equatable, Identifiable {
 
     /// The real interval, broken into whole units. Unlike `daysRemaining` this
     /// measures from the instant, not from midnight.
-    func remaining(from reference: Date = Date()) -> (days: Int, hours: Int,
-                                                      minutes: Int, past: Bool) {
-        let seconds = Int(date.timeIntervalSince(reference))
-        let past = seconds < 0
-        let total = abs(seconds)
-        return (total / 86_400, (total % 86_400) / 3600, (total % 3600) / 60, past)
+    func remaining(from reference: Date = Date()) -> Remaining {
+        let signed = Int(date.timeIntervalSince(reference))
+        let total = abs(signed)
+        return Remaining(days: total / 86_400, hours: (total % 86_400) / 3600,
+                         minutes: (total % 3600) / 60, seconds: total % 60,
+                         past: signed < 0)
+    }
+
+    struct Remaining {
+        var days: Int
+        var hours: Int
+        var minutes: Int
+        var seconds: Int
+        var past: Bool
     }
 
     /// Which direction the caption reads, for either precision.
@@ -98,8 +141,13 @@ struct CountdownEvent: Codable, Equatable, Identifiable {
 /// Shared storage. The app writes, the widget reads, and they meet in the App Group.
 ///
 /// The list is the source of truth. Version 1.0 stored exactly one event under
-/// its own key, so the first read migrates that into a one-item list and leaves
-/// the old key alone — an app that is rolled back should still find its event.
+/// its own key; reading falls back to it and leaves the old key alone, so an app
+/// that is rolled back still finds its event.
+///
+/// **Reading never writes.** It used to: a read that missed the list would save
+/// a one-item list built from the old key. Both the app and the widget read,
+/// so either process could clobber the other's list down to its first
+/// countdown. The app saves the list on its own the moment it loads.
 enum CountdownStore {
     private static let listKey = "duckdays.events"
     private static let legacyKey = "duckdays.event"
@@ -116,7 +164,6 @@ enum CountdownStore {
         }
         if let data = defaults.data(forKey: legacyKey),
            let event = try? JSONDecoder().decode(CountdownEvent.self, from: data) {
-            saveAll([event])
             return [event]
         }
         return [.placeholder]
@@ -166,22 +213,23 @@ enum CountdownPhrasing {
         }
     }
 
-    /// Two units, never three: "3 Days 4 Hrs" then "4 Hrs 37 Min" then "37 Min".
-    /// Three would not fit the headline at small size, and the smallest unit of
-    /// the three is noise next to the largest.
-    static func minuteHeadline(
-        for parts: (days: Int, hours: Int, minutes: Int, past: Bool)
-    ) -> String {
-        let day = parts.days == 1 ? "Day" : "Days"
-        let hour = parts.hours == 1 ? "Hr" : "Hrs"
+    /// A cascade rather than a fixed pair of units. Whole days while there is
+    /// more than a day left, then hours and minutes, then minutes and seconds,
+    /// then seconds — so the largest thing on screen is always the unit that is
+    /// actually moving, and the last minute genuinely ticks.
+    ///
+    /// Days alone above 24 hours on purpose: "26 Days 4 Hrs" reads as precision
+    /// nobody asked for at that distance, and the hours figure is stale within
+    /// the hour anyway.
+    static func minuteHeadline(for parts: CountdownEvent.Remaining) -> String {
         if parts.days > 0 {
-            return parts.hours > 0 ? "\(parts.days) \(day) \(parts.hours) \(hour)"
-                                   : "\(parts.days) \(day)"
+            return parts.days == 1 ? "1 Day" : "\(parts.days) Days"
         }
         if parts.hours > 0 {
-            return "\(parts.hours) \(hour) \(parts.minutes) Min"
+            return "\(parts.hours) \(parts.hours == 1 ? "Hr" : "Hrs") \(parts.minutes) Min"
         }
-        if parts.minutes > 0 { return "\(parts.minutes) Min" }
+        if parts.minutes > 0 { return "\(parts.minutes) Min \(parts.seconds) Sec" }
+        if parts.seconds > 0 { return "\(parts.seconds) Sec" }
         return "NOW"
     }
 
@@ -194,7 +242,8 @@ enum CountdownPhrasing {
             return days > 0 ? "until \(title)" : "since \(title)"
         }
         let parts = event.remaining(from: reference)
-        if parts.days == 0 && parts.hours == 0 && parts.minutes == 0 {
+        if parts.days == 0 && parts.hours == 0 && parts.minutes == 0
+            && parts.seconds == 0 {
             return "it's \(title)!"
         }
         return parts.past ? "since \(title)" : "until \(title)"

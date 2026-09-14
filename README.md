@@ -90,13 +90,33 @@ every widget pointed at that countdown.
 Resolution falls back to the **first countdown**, never to the placeholder — a widget
 whose countdown was deleted should keep showing something real.
 
+**The intent lives in the widget target only** (`DuckWidget/CountdownIntent.swift`).
+It used to sit in `Shared/` and compile into the app as well, which registered
+`SelectCountdownIntent` and `CountdownEntity` in *both* bundles' `Metadata.appintents`.
+With two registrations a widget's chosen countdown could resolve against the app's
+copy while the widget's timeline got an intent whose countdown was nil — so every
+widget showed the first countdown whatever it was set to. The app never uses these
+types. Check it after touching them:
+
+```bash
+find DuckDays.app -name extract.actionsdata   # only the .appex should have one
+```
+
+Two related rules in `CountdownStore`: **reading never writes** (a read that fell back
+to the 1.0 key used to save a one-item list over the real one, from either process),
+and a 1.0 event with no stored id gets one **derived from its title and date** rather
+than `UUID()`, so the app and the widget agree on it.
+
 **Precision** is per countdown:
 
 - `.day` counts calendar days, so an event tomorrow morning still reads "1 Day" at
   eleven tonight rather than "9 Hrs". This is the "how many more sleeps" question.
-- `.minute` counts the real interval and shows two units: "3 Days 4 Hrs", then
-  "4 Hrs 37 Min", then "37 Min". Never three — the third unit does not fit the
-  headline at small size and is noise next to the first.
+- `.minute` counts the real interval and **cascades**: whole days while more than a
+  day is left ("26 Days"), then hours and minutes ("4 Hrs 37 Min"), then minutes and
+  seconds ("37 Min 12 Sec"), then seconds ("42 Sec"), then NOW. The largest thing on
+  screen is always the unit that is actually moving. The app redraws every second,
+  and inside the last hour the widget timeline steps every two seconds even with
+  motion off, so the seconds are not frozen on whatever they read at build time.
 
 Version 1.0 stored exactly one event under its own key. The first read migrates that
 into a one-item list and **leaves the old key in place**, so a rollback still finds it.
@@ -183,6 +203,12 @@ the only chrome is a 2pt stroke in the same near-black the sprites are outlined 
 
 The corner radius itself is owned by the system and cannot be reduced; `ContainerRelativeShape`
 follows whatever iOS applies. Filling to the edge is what removes the mismatch.
+
+The `containerBackground` is a **dark solid, not the sky**. The sky is already the first
+layer of the scene and covers the widget edge to edge, so on the home screen the
+container is never seen. Where it *is* seen is the Edit Widget sheet, which uses it as
+a backdrop: a pale sky there sat under white dark-mode text and a yellow value, and
+every label on the sheet blended into it.
 
 ## Tinted and clear home screens
 
@@ -388,9 +414,13 @@ python3 tools/duck_forge.py icon
 The main screen is the finished thing, not the editor for it. The countdown is the
 hero and takes the top third; everything else is one tap away:
 
-- **Tap the countdown** → widget sheet: everything you do *to* it — size, motion,
-  app icon, share, delete
-- **Tap the event card** → event sheet: everything it *is* — title, date, precision
+- **Tap the countdown or Add Duck Widget** → widget sheet: preview, size, motion,
+  numbered steps for putting one on the home screen, share
+- **Tap the event card** → event sheet: title, date, precision
+- **Gear** → settings: app icon, delete this countdown, help, privacy, version
+
+The widget sheet holds only what somebody opened it to do. The motion note appears
+only while motion is on — under an off switch it was a caveat about nothing.
 - **See all** → the full grid of ducks
 
 Edits save as they happen, so the primary button is about adding the widget rather

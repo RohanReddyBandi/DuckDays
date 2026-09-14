@@ -7,16 +7,17 @@ struct ContentView: View {
     @State private var previewSize: CountdownScene.Size = .small
     @State private var sheet: DuckSheet?
     @State private var justSaved = false
-    /// Re-read often enough that a minute countdown ticks over while you watch.
-    /// Five seconds, not one: the finest thing on screen is a minute, and the
-    /// whole scene re-renders on each tick.
+    /// Re-read every second, because a minute countdown inside its last hour is
+    /// showing seconds and they have to actually move. The scene is images and
+    /// text so redrawing it at 1Hz is cheap, and the duck's animation runs off
+    /// its own @State rather than off this, so it does not restart.
     @State private var now = Date()
     /// Set when a challenge is met, cleared when the card is dismissed.
     @State private var unlocked: DuckChallenge?
     /// A countdown offered by a shared link. Held, not saved — nothing is
     /// written until the card's button is pressed.
     @State private var incoming: CountdownEvent?
-    private let clock = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
+    private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var current: CountdownEvent {
         events.indices.contains(index) ? events[index] : .placeholder
@@ -89,14 +90,14 @@ struct ContentView: View {
                 EventEditorSheet(event: currentBinding, style: style)
                     .presentationDetents([.large])
             case .widget:
-                WidgetSheet(size: $previewSize, event: currentBinding, style: style,
-                            canDelete: events.count > 1, onDelete: deleteCurrent)
+                WidgetSheet(size: $previewSize, event: currentBinding, style: style)
                     // An explicit height rather than .medium: the content is a
-                    // known size, and .medium clipped the controls. Raised from
-                    // 540 when share and delete moved in — at 540 they sat two
-                    // scrolls below the fold, which is a poor home for the
-                    // actions somebody opened this sheet to reach.
+                    // known size, and .medium clipped the controls.
                     .presentationDetents([.height(620), .large])
+            case .settings:
+                SettingsSheet(event: current, style: style,
+                              canDelete: events.count > 1, onDelete: deleteCurrent)
+                    .presentationDetents([.large])
             case .allDucks:
                 AllDucksSheet(styleID: currentBinding.styleID, style: style)
                     .presentationDetents([.large])
@@ -143,7 +144,7 @@ struct ContentView: View {
                 .foregroundStyle(Chrome.ink)
             Spacer()
             circleButton("plus", action: addCountdown)
-            circleButton("slider.horizontal.3") { sheet = .widget }
+            circleButton("gearshape.fill") { sheet = .settings }
         }
         .padding(.horizontal, Chrome.margin)
         .padding(.top, 6)

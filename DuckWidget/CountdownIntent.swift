@@ -1,6 +1,14 @@
 import AppIntents
 import Foundation
 
+// Widget target only. This file used to live in Shared/ and compile into the
+// app as well, which registered SelectCountdownIntent and CountdownEntity in
+// both bundles' Metadata.appintents. With two registrations the system could
+// resolve a widget's chosen countdown against the app's copy while the widget's
+// timeline received an intent whose countdown never resolved on its side — nil,
+// so every widget fell back to the first countdown whatever it was set to.
+// The app never uses these types, so it does not carry them.
+
 /// One countdown, as something the widget's own edit sheet can list.
 ///
 /// A thin projection of `CountdownEvent` rather than the event itself: the
@@ -42,10 +50,6 @@ struct CountdownQuery: EntityQuery {
     /// What the widget's edit sheet offers.
     func suggestedEntities() async throws -> [CountdownEntity] {
         CountdownStore.loadAll().map(CountdownEntity.init)
-    }
-
-    func defaultResult() async -> CountdownEntity? {
-        CountdownStore.loadAll().first.map(CountdownEntity.init)
     }
 }
 

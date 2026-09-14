@@ -14,14 +14,21 @@ func event(_ offset: TimeInterval, _ p: CountdownEvent.Precision,
 }
 let day = 86_400.0, hour = 3600.0, minute = 60.0
 
-print("— minute precision headline —")
-check(CountdownPhrasing.headline(for: event(3*day + 4*hour + 37*minute, .minute), at: now), "3 Days 4 Hrs", "3d 4h 37m")
-check(CountdownPhrasing.headline(for: event(4*hour + 37*minute, .minute), at: now), "4 Hrs 37 Min", "4h 37m")
-check(CountdownPhrasing.headline(for: event(37*minute, .minute), at: now), "37 Min", "37m")
-check(CountdownPhrasing.headline(for: event(30, .minute), at: now), "NOW", "30 seconds")
-check(CountdownPhrasing.headline(for: event(day + hour + 5, .minute), at: now), "1 Day 1 Hr", "singulars")
-check(CountdownPhrasing.headline(for: event(3*day + 30, .minute), at: now), "3 Days", "3d, no hours -> unit dropped")
-check(CountdownPhrasing.headline(for: event(-(2*day + 5*hour), .minute), at: now), "2 Days 5 Hrs", "past reads as magnitude")
+print("— minute precision: the cascade —")
+// Days while more than a day is left; then hours + minutes; then minutes +
+// seconds; then seconds; then NOW. Each step is pinned at both of its edges.
+check(CountdownPhrasing.headline(for: event(3*day + 4*hour + 37*minute, .minute), at: now), "3 Days", "days only above 24h")
+check(CountdownPhrasing.headline(for: event(day + hour + 5, .minute), at: now), "1 Day", "1 day, singular")
+check(CountdownPhrasing.headline(for: event(day + 5, .minute), at: now), "1 Day", "just over 24h is still a day")
+check(CountdownPhrasing.headline(for: event(day - 60, .minute), at: now), "23 Hrs 59 Min", "just under 24h drops to hours")
+check(CountdownPhrasing.headline(for: event(4*hour + 37*minute + 5, .minute), at: now), "4 Hrs 37 Min", "hours and minutes")
+check(CountdownPhrasing.headline(for: event(hour + 5, .minute), at: now), "1 Hr 0 Min", "1 hour, singular")
+check(CountdownPhrasing.headline(for: event(hour - 1, .minute), at: now), "59 Min 59 Sec", "under an hour drops to minutes")
+check(CountdownPhrasing.headline(for: event(37*minute + 12, .minute), at: now), "37 Min 12 Sec", "minutes and seconds")
+check(CountdownPhrasing.headline(for: event(59, .minute), at: now), "59 Sec", "under a minute is seconds alone")
+check(CountdownPhrasing.headline(for: event(1, .minute), at: now), "1 Sec", "the last second")
+check(CountdownPhrasing.headline(for: event(0, .minute), at: now), "NOW", "zero")
+check(CountdownPhrasing.headline(for: event(-(2*day + 5*hour), .minute), at: now), "2 Days", "past reads as magnitude")
 
 print("\n— day precision headline —")
 // Calendar days, not raw seconds: "tomorrow" is a calendar relationship, and
@@ -39,12 +46,14 @@ check(CountdownPhrasing.caption(for: inDays(-1), at: now), "since Fall Break", "
 print("\n— caption direction —")
 check(CountdownPhrasing.caption(for: event(3*day, .minute), at: now), "until Fall Break", "future, minute")
 check(CountdownPhrasing.caption(for: event(-3*day, .minute), at: now), "since Fall Break", "past, minute")
-check(CountdownPhrasing.caption(for: event(30, .minute), at: now), "it's Fall Break!", "arrived, minute")
+check(CountdownPhrasing.caption(for: event(30, .minute), at: now), "until Fall Break", "30s left is not arrived yet")
+check(CountdownPhrasing.caption(for: event(0, .minute), at: now), "it's Fall Break!", "arrived at zero, minute")
 check(CountdownPhrasing.caption(for: event(28*day, .day), at: now), "until Fall Break", "future, day")
 check(CountdownPhrasing.caption(for: event(-28*day, .day), at: now), "since Fall Break", "past, day")
 
 print("\n— lock screen compact —")
-check(CountdownPhrasing.compact(for: event(3*day + 4*hour, .minute), at: now), "3 Days 4 Hrs to Fall Break", "minute compact")
+check(CountdownPhrasing.compact(for: event(3*day + 4*hour, .minute), at: now), "3 Days to Fall Break", "minute compact, days")
+check(CountdownPhrasing.compact(for: event(42, .minute), at: now), "42 Sec to Fall Break", "minute compact, seconds")
 check(CountdownPhrasing.compact(for: event(28*day, .day), at: now), "28 days to Fall Break", "day compact")
 
 print("\n— decoding a 1.0 payload (no id, no precision) —")
@@ -106,6 +115,20 @@ let unknownDuck = CountdownShare.payload(for:
     CountdownEvent(title: "x", date: now, styleID: "duck-from-the-future"))
 check(CountdownShare.event(from: unknownDuck)?.styleID ?? "nil", "classic",
       "unknown duck falls back")
+
+print("\n— ids written before ids existed —")
+// The app and the widget each decode a 1.0 payload. They must agree on its id,
+// or a widget configured against it never finds it in the other process.
+let legacyA = #"{"title":"the reunion","date":800000000,"styleID":"midnight","motion":true}"#
+let first = try! JSONDecoder().decode(CountdownEvent.self, from: Data(legacyA.utf8))
+let second = try! JSONDecoder().decode(CountdownEvent.self, from: Data(legacyA.utf8))
+check(first.id == second.id ? "same" : "different", "same", "same payload, same id")
+let legacyB = #"{"title":"graduation","date":800000000}"#
+let other = try! JSONDecoder().decode(CountdownEvent.self, from: Data(legacyB.utf8))
+check(first.id != other.id ? "distinct" : "collided", "distinct", "different event, different id")
+let stored = #"{"id":"11111111-2222-3333-4444-555555555555","title":"the reunion","date":800000000}"#
+let explicit = try! JSONDecoder().decode(CountdownEvent.self, from: Data(stored.utf8))
+check(explicit.id.uuidString, "11111111-2222-3333-4444-555555555555", "a stored id always wins")
 
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")
 exit(failures == 0 ? 0 : 1)
