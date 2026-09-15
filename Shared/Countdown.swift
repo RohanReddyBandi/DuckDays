@@ -115,13 +115,41 @@ struct CountdownEvent: Codable, Equatable, Identifiable {
 
     /// The real interval, broken into whole units. Unlike `daysRemaining` this
     /// measures from the instant, not from midnight.
+    ///
+    /// In **5-second steps**, not single seconds. A widget cannot redraw every
+    /// second — the host coalesces updates — so a per-second readout was always
+    /// slightly wrong on the home screen. Steps of five are coarse enough that
+    /// each change can land on time, and the app uses the same steps so the two
+    /// never disagree.
+    ///
+    /// Rounded **up** while counting down, so it never reads a smaller number
+    /// than is really left and never shows zero early: 57 seconds reads "1 Min",
+    /// 53 reads "55 Sec". Rounded down once past, so elapsed time is not
+    /// overstated.
+    ///
+    /// Held at zero for the **first minute after** the moment. The event has
+    /// just happened; flipping straight to "5 Sec since" is the wrong beat.
     func remaining(from reference: Date = Date()) -> Remaining {
-        let signed = Int(date.timeIntervalSince(reference))
-        let total = abs(signed)
+        let raw = date.timeIntervalSince(reference)
+        if raw <= 0 && raw > -Self.arrivalGrace {
+            return Remaining(days: 0, hours: 0, minutes: 0, seconds: 0, past: false)
+        }
+        // The epsilon absorbs Date's floating-point drift: an interval that is
+        // really 3600s can arrive as 3600.0000001 and would otherwise step up
+        // to 3605.
+        let step = Self.displayStep
+        let steps = raw > 0 ? ((raw - 0.01) / step).rounded(.up)
+                            : ((-raw + 0.01) / step).rounded(.down)
+        let total = Int(steps * step)
         return Remaining(days: total / 86_400, hours: (total % 86_400) / 3600,
                          minutes: (total % 3600) / 60, seconds: total % 60,
-                         past: signed < 0)
+                         past: raw < 0)
     }
+
+    /// How finely a minute countdown moves, in seconds.
+    static let displayStep: TimeInterval = 5
+    /// How long "NOW" holds after the moment before counting up begins.
+    static let arrivalGrace: TimeInterval = 60
 
     struct Remaining {
         var days: Int
@@ -221,14 +249,22 @@ enum CountdownPhrasing {
     /// Days alone above 24 hours on purpose: "26 Days 4 Hrs" reads as precision
     /// nobody asked for at that distance, and the hours figure is stale within
     /// the hour anyway.
+    ///
+    /// A smaller unit that reads zero is dropped rather than shown: "1 Min",
+    /// not "1 Min 0 Sec"; "2 Hrs", not "2 Hrs 0 Min". So the last stretch reads
+    /// 1 Min, 55 Sec, 50 Sec … 5 Sec, NOW.
     static func minuteHeadline(for parts: CountdownEvent.Remaining) -> String {
         if parts.days > 0 {
             return parts.days == 1 ? "1 Day" : "\(parts.days) Days"
         }
         if parts.hours > 0 {
-            return "\(parts.hours) \(parts.hours == 1 ? "Hr" : "Hrs") \(parts.minutes) Min"
+            let hours = "\(parts.hours) \(parts.hours == 1 ? "Hr" : "Hrs")"
+            return parts.minutes == 0 ? hours : "\(hours) \(parts.minutes) Min"
         }
-        if parts.minutes > 0 { return "\(parts.minutes) Min \(parts.seconds) Sec" }
+        if parts.minutes > 0 {
+            return parts.seconds == 0 ? "\(parts.minutes) Min"
+                                      : "\(parts.minutes) Min \(parts.seconds) Sec"
+        }
         if parts.seconds > 0 { return "\(parts.seconds) Sec" }
         return "NOW"
     }

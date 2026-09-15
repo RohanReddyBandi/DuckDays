@@ -40,11 +40,11 @@ struct DuckProvider: AppIntentTimelineProvider {
     private static let minuteStep: TimeInterval = 60
     private static let minuteSpan = 60
 
-    /// Inside the last hour the headline is counting seconds, and a minute
-    /// between entries would leave them frozen on whatever they read when the
-    /// timeline was built. Two seconds is as fine as is worth asking for — the
-    /// widget host coalesces below that on real hardware anyway.
-    private static let closingStep: TimeInterval = 2
+    /// Inside the last hour the headline is counting seconds, in the 5-second
+    /// steps `CountdownEvent.remaining` rounds to. Entries go exactly on those
+    /// boundaries — the instants the readout changes — rather than on a fixed
+    /// tick from whenever the timeline happened to be built, which put every
+    /// change up to a tick late.
     private static let closingWindow: TimeInterval = 3600
 
     func timeline(for configuration: SelectCountdownIntent,
@@ -64,21 +64,41 @@ struct DuckProvider: AppIntentTimelineProvider {
 
         var entries: [DuckEntry] = []
         if event.motion {
-            // 1.5s is already finer than the seconds on screen need, so motion
-            // covers the run-in to zero without any help.
             for step in 0..<Self.motionSpan {
                 entries.append(DuckEntry(
                     date: now.addingTimeInterval(Double(step) * Self.motionStep),
                     event: event, phase: step))
             }
+            // Motion entries tick from whenever the timeline was built, so a
+            // 5-second change could land up to a tick late. In the last hour,
+            // add an entry on each boundary as well, carrying the phase of the
+            // motion entry it falls beside so the duck does not jump.
+            if closingIn {
+                let step = CountdownEvent.displayStep
+                let before = Int((untilTarget / step).rounded(.up))
+                let after = Int((CountdownEvent.arrivalGrace + 30) / step)
+                for k in stride(from: before, through: -after, by: -1) {
+                    let boundary = event.date.addingTimeInterval(-Double(k) * step)
+                    guard boundary > now else { continue }
+                    let phase = Int(boundary.timeIntervalSince(now) / Self.motionStep)
+                    guard phase < Self.motionSpan else { continue }
+                    entries.append(DuckEntry(date: boundary, event: event, phase: phase))
+                }
+                entries.sort { $0.date < $1.date }
+            }
         } else if closingIn {
-            // Carry on a little past zero so the widget shows the moment
-            // arriving rather than stopping one entry short of it.
-            let span = Int((untilTarget + 120) / Self.closingStep)
-            for step in 0..<max(1, min(span, 1800)) {
-                entries.append(DuckEntry(
-                    date: now.addingTimeInterval(Double(step) * Self.closingStep),
-                    event: event))
+            // One entry now, then one at each 5-second boundary before the
+            // moment, then on through the minute "NOW" holds and a little
+            // past it, so counting up starts on time too.
+            entries.append(DuckEntry(date: now, event: event))
+            let step = CountdownEvent.displayStep
+            let before = Int((untilTarget / step).rounded(.up))
+            let after = Int((CountdownEvent.arrivalGrace + 30) / step)
+            for k in stride(from: before, through: -after, by: -1) {
+                let boundary = event.date.addingTimeInterval(-Double(k) * step)
+                if boundary > now {
+                    entries.append(DuckEntry(date: boundary, event: event))
+                }
             }
         } else if event.precision == .minute {
             for step in 0..<Self.minuteSpan {
@@ -131,7 +151,8 @@ struct DuckWidgetEntryView: View {
         if parts.days > 0 { return "\(parts.days)d" }
         if parts.hours > 0 { return "\(parts.hours)h" }
         if parts.minutes > 0 { return "\(parts.minutes)m" }
-        return "\(parts.seconds)s"
+        if parts.seconds > 0 { return "\(parts.seconds)s" }
+        return "now"
     }
 
     /// The only chrome: one hairline of the same near-black the sprites are
@@ -150,14 +171,11 @@ struct DuckWidgetEntryView: View {
                         .strokeBorder(Color(rgb: 0x17171A).opacity(0.85), lineWidth: 2)
                 }
             }
+            // The Edit Widget sheet does NOT take its colours from here — it
+            // reads WidgetBackground and AccentColor from this target's asset
+            // catalog. See Assets.xcassets in DuckWidget/.
             .containerBackground(for: .widget) {
-                // Dark, not the sky. The sky is already painted as the first
-                // layer of the scene and fills the widget edge to edge, so on
-                // the home screen this is never seen. Where it IS seen is the
-                // Edit Widget sheet, which uses the container background as its
-                // backdrop — and a pale sky there sat under white dark-mode text
-                // and a yellow value, so every label on the sheet blended in.
-                if renderingMode == .fullColor { Color(rgb: 0x14161D) } else { Color.clear }
+                if renderingMode == .fullColor { style.sky } else { Color.clear }
             }
     }
 

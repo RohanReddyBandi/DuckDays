@@ -108,7 +108,16 @@ struct WidgetSheet: View {
     @Binding var event: CountdownEvent
     let style: DuckStyle
 
-    static let stageHeight: CGFloat = 200
+    /// Per size, not one fixed height. Large is laid out for a widget about
+    /// 354pt tall; squeezed into 200 its type shrank with the height while the
+    /// duck, sized off the width, did not, and the date line ran under the duck.
+    /// Near its real height it composes the way it does on the home screen.
+    private var stageHeight: CGFloat {
+        switch size {
+        case .small, .medium: return 200
+        case .large: return 330
+        }
+    }
 
     private var accent: Color { Color(rgb: style.accent) }
 
@@ -132,8 +141,8 @@ struct WidgetSheet: View {
                                size: size, animated: true)
                     .aspectRatio(aspect, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .frame(maxWidth: .infinity, maxHeight: Self.stageHeight)
-                    .frame(height: Self.stageHeight)
+                    .frame(maxWidth: .infinity, maxHeight: stageHeight)
+                    .frame(height: stageHeight)
                     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: size)
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -156,7 +165,7 @@ struct WidgetSheet: View {
                     // happening; under an off switch it is a caveat about
                     // nothing, and it made the row look like a warning.
                     if event.motion {
-                        Text("iOS may slow this down to save energy.")
+                        Text("Your device may slow this down to save energy.")
                             .font(.system(size: 13, weight: .regular, design: .rounded))
                             .foregroundStyle(Chrome.dim)
                             .fixedSize(horizontal: false, vertical: true)
@@ -169,7 +178,7 @@ struct WidgetSheet: View {
                 // the wrong weight for the only instructions in the app — it is
                 // the thing somebody opens this sheet not knowing how to do.
                 VStack(alignment: .leading, spacing: 12) {
-                    Chrome.meta("PUTTING ONE ON YOUR HOME SCREEN")
+                    Chrome.meta("ADD TO HOME SCREEN")
                     step(1, "Touch and hold an empty part of your home screen")
                     step(2, "Tap **Edit**, then **Add Widget**")
                     step(3, "Search for **Duck Days** and pick a size")
@@ -265,13 +274,13 @@ struct SettingsSheet: View {
                 if canDelete {
                     VStack(alignment: .leading, spacing: 10) {
                         Chrome.meta("THIS COUNTDOWN")
-                        // Named, because this sheet is not obviously about one
-                        // countdown and a bare "Delete" here could plausibly
-                        // mean all of them.
+                        // "This countdown", not the event's name: the section
+                        // header already says which one, and the confirmation
+                        // that follows names it before anything is removed.
                         Button(role: .destructive) {
                             confirmingDelete = true
                         } label: {
-                            SettingsRow(title: "Delete \(event.title)",
+                            SettingsRow(title: "Delete this countdown",
                                         detail: nil, tint: Color(rgb: 0xFF6B6B),
                                         chevron: false)
                         }
