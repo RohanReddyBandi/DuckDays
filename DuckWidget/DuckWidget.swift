@@ -17,7 +17,7 @@ struct DuckProvider: AppIntentTimelineProvider {
     func snapshot(for configuration: SelectCountdownIntent,
                   in context: Context) async -> DuckEntry {
         DuckEntry(date: Date(),
-                  event: CountdownStore.event(id: configuration.countdown?.id))
+                  event: CountdownStore.event(id: configuration.chosenID))
     }
 
     /// A second and a half apart, for an hour. Stepping through entries the provider
@@ -49,7 +49,7 @@ struct DuckProvider: AppIntentTimelineProvider {
 
     func timeline(for configuration: SelectCountdownIntent,
                   in context: Context) async -> Timeline<DuckEntry> {
-        let event = CountdownStore.event(id: configuration.countdown?.id)
+        let event = CountdownStore.event(id: configuration.chosenID)
         let calendar = Calendar.current
         let now = Date()
         let today = calendar.startOfDay(for: now)

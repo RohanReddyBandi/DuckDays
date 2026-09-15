@@ -83,23 +83,38 @@ The store holds a **list**. Each countdown has a stable `id`, its own duck, its 
 Widget motion setting, and its own precision — and a widget is configured against one
 of them by id, so two Duck Days widgets on one home screen can be waiting for
 different things. That is why the widget is an `AppIntentConfiguration` rather than a
-`StaticConfiguration`: `SelectCountdownIntent` carries the chosen `CountdownEntity`,
+`StaticConfiguration`: `SelectCountdownIntent` carries the chosen countdown's id,
 and `CountdownStore.event(id:)` resolves it at render time so edits in the app reach
 every widget pointed at that countdown.
 
 Resolution falls back to the **first countdown**, never to the placeholder — a widget
 whose countdown was deleted should keep showing something real.
 
-**The intent lives in the widget target only** (`DuckWidget/CountdownIntent.swift`).
-It used to sit in `Shared/` and compile into the app as well, which registered
-`SelectCountdownIntent` and `CountdownEntity` in *both* bundles' `Metadata.appintents`.
-With two registrations a widget's chosen countdown could resolve against the app's
-copy while the widget's timeline got an intent whose countdown was nil — so every
-widget showed the first countdown whatever it was set to. The app never uses these
-types. Check it after touching them:
+**The parameter is a `String`, not an `AppEntity`.** It was a `CountdownEntity` with an
+`EntityQuery`, and every widget showed the first countdown whatever it was set to. The
+picker listed countdowns and iOS saved the choice correctly; the serialized intent
+carried the chosen id. But logging the widget process showed iOS failing to rebuild it
+before our code was ever asked:
+
+```
+Converting single entity value … identifier: CountdownEntity, bundleIdentifier: nil
+Failed to build EntityIdentifier. CountdownEntity is not a registered AppEntity identifier
+Prepared countdown to CountdownEntity(nil)
+```
+
+The query was never called and the build's metadata was correct, so the failure was in
+the system's runtime entity lookup, out of reach. A `String` converts as a primitive
+with no entity registration, and `CountdownOptions` (a `DynamicOptionsProvider`) still
+gives the picker a title and date per countdown. Verified on the simulator with two
+widgets set to two different countdowns.
+
+**The intent lives in the widget target only** (`DuckWidget/CountdownIntent.swift`) —
+the app never uses it, and a copy in both bundles only adds a second registration.
+
+To see what a widget actually receives, stream its process:
 
 ```bash
-find DuckDays.app -name extract.actionsdata   # only the .appex should have one
+xcrun simctl spawn booted log stream --level debug --predicate 'process == "DuckWidget"'
 ```
 
 Two related rules in `CountdownStore`: **reading never writes** (a read that fell back

@@ -1,55 +1,36 @@
 import AppIntents
 import Foundation
 
-// Widget target only. This file used to live in Shared/ and compile into the
-// app as well, which registered SelectCountdownIntent and CountdownEntity in
-// both bundles' Metadata.appintents. With two registrations the system could
-// resolve a widget's chosen countdown against the app's copy while the widget's
-// timeline received an intent whose countdown never resolved on its side — nil,
-// so every widget fell back to the first countdown whatever it was set to.
-// The app never uses these types, so it does not carry them.
+// Widget target only — the app never uses these types.
+//
+// Why a String and not an AppEntity. This used to be `CountdownEntity`, an
+// AppEntity with an EntityQuery. The picker listed the countdowns and iOS saved
+// the choice correctly — the serialized intent carried the chosen id — but the
+// widget still received `nil` every time and fell back to the first countdown.
+// Logged on the simulator, while rebuilding the saved value:
+//
+//     Converting single entity value … identifier: CountdownEntity, bundleIdentifier: nil
+//     Failed to build EntityIdentifier. CountdownEntity is not a registered AppEntity identifier
+//     Prepared countdown to CountdownEntity(nil)
+//
+// iOS looked the entity type up under an unknown bundle before our query was
+// ever asked — the query was never called. The build's metadata was correct;
+// the failure is in the system's runtime lookup, which this code cannot reach.
+//
+// A String parameter is converted as a primitive, with no entity registration
+// involved, and an options provider still gives the picker a proper title and
+// date per countdown. The stored value is the countdown's UUID string.
 
-/// One countdown, as something the widget's own edit sheet can list.
-///
-/// A thin projection of `CountdownEvent` rather than the event itself: the
-/// entity is what iOS persists inside a widget's configuration, so it should
-/// carry identity and a label and nothing that goes stale. Everything else is
-/// looked up fresh from the store at render time.
-struct CountdownEntity: AppEntity, Identifiable {
-    let id: UUID
-    let title: String
-    let when: String
-
-    init(_ event: CountdownEvent) {
-        id = event.id
-        title = event.title
-        when = event.date.formatted(.dateTime.day().month(.abbreviated).year())
-    }
-
-    static var typeDisplayRepresentation: TypeDisplayRepresentation {
-        TypeDisplayRepresentation(name: "Countdown")
-    }
-
-    static var defaultQuery = CountdownQuery()
-
-    var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(title)", subtitle: "\(when)")
-    }
-}
-
-struct CountdownQuery: EntityQuery {
-    /// Resolving by id, not by index — a widget configured against a countdown
-    /// keeps pointing at it after the list is reordered or something above it
-    /// is deleted.
-    func entities(for identifiers: [UUID]) async throws -> [CountdownEntity] {
-        CountdownStore.loadAll()
-            .filter { identifiers.contains($0.id) }
-            .map(CountdownEntity.init)
-    }
-
-    /// What the widget's edit sheet offers.
-    func suggestedEntities() async throws -> [CountdownEntity] {
-        CountdownStore.loadAll().map(CountdownEntity.init)
+/// What the widget's edit sheet lists: every countdown, by title and date,
+/// with its id as the value that gets saved.
+struct CountdownOptions: DynamicOptionsProvider {
+    func results() async throws -> IntentItemCollection<String> {
+        let items = CountdownStore.loadAll().map { event in
+            IntentItem(event.id.uuidString,
+                       title: "\(event.title)",
+                       subtitle: "\(event.date.formatted(.dateTime.day().month(.abbreviated).year()))")
+        }
+        return IntentItemCollection(sections: [IntentItemSection(items: items)])
     }
 }
 
@@ -64,12 +45,19 @@ struct SelectCountdownIntent: WidgetConfigurationIntent {
         IntentDescription("Pick which countdown this duck is waiting for.")
     }
 
-    @Parameter(title: "Countdown")
-    var countdown: CountdownEntity?
+    /// Named `countdownID`, not `countdown`: a widget configured under the old
+    /// entity parameter never resolved anyway, so nothing is lost, and a fresh
+    /// name keeps the old serialized value from being decoded as a string.
+    @Parameter(title: "Countdown", optionsProvider: CountdownOptions())
+    var countdownID: String?
 
     init() {}
 
-    init(countdown: CountdownEntity?) {
-        self.countdown = countdown
+    init(countdownID: String?) {
+        self.countdownID = countdownID
     }
+
+    /// The chosen countdown's id, or nil when none is chosen or the stored
+    /// string is not a UUID. Resolution falls back to the first countdown.
+    var chosenID: UUID? { countdownID.flatMap(UUID.init(uuidString:)) }
 }
