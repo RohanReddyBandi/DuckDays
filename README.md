@@ -311,12 +311,23 @@ claiming to be about the widget would just read as broken.
 mechanism. A widget has no run loop, so it cannot animate itself. What it can do is
 animate the transition between timeline entries. So every entry carries a `phase`, the
 duck's pose is a pure function of it, and WidgetKit eases between poses as one entry
-replaces the next. Entries are 3 seconds apart, an hour at a time, then the timeline
-reloads — 24 reloads a day. Stepping through entries the provider already returned does
-not spend the refresh budget; only calling `getTimeline` again does, so density is
-bought with entry count rather than with reloads. That is why the span stays at an
-hour however fine the step gets: `motionSpan × motionStep` is the number that must not
-shrink.
+replaces the next. Stepping through entries the provider already returned does not
+spend the refresh budget; only calling `getTimeline` again does.
+
+**Every timeline is capped at 450 entries** (`WidgetSchedule.entryCap`, in
+`Shared/Countdown.swift`, tested in `tools/test-shared.sh`). On a tinted or clear home
+screen iOS prepares each entry in more than one rendering, and past a limit it gives
+up and shows the widget as a grey redacted placeholder — the "widget disappears" bug.
+Full colour copes with far more, which is how 2400 entries went unnoticed. Measured on
+the simulator with the entry count stamped into the caption so a fresh render proved
+itself: **900 rendered in tinted mode, 1200 did not, 2400 did not.** The cap is half the
+last count that worked, since a phone prepares these more slowly than a Mac.
+
+So motion is a dense burst and a slower tail rather than one uniform run: 300 entries
+1.5s apart (7.5 minutes of constant bobbing), then entries every 15s until the cap,
+which keeps the duck moving for most of an hour before the timeline reloads. A minute
+countdown inside its last hour uses the 5-second boundaries instead, with the pose
+riding along on those same entries.
 
 **Travel is measured in sprite pixels, not points.** A flat point amplitude is a third
 of the duck's height on a small widget and a tenth of it on a large one, so the motion
@@ -345,9 +356,9 @@ rather than moving and then waiting. That overlap is what removes the rigidity.
 Screenshotting the simulator home screen and diffing the duck's pixels against an
 untouched wallpaper control:
 
-- **Three-second entries render, and a 1200-entry timeline holds.** Eight frames 3s
-  apart: every consecutive pair changed in the duck's band (4.8%–19.7%) while the
-  wallpaper control read 0.00% every time. No crash, no fall back to the placeholder.
+- **Entry count is capped by tinted mode, not by full colour.** See above: 900 render
+  tinted, 1200 do not. Under the 450 cap, four frames 3s apart changed 15–25% in the
+  duck's band against 0.00% on a static app icon.
 - **Sub-minute entries render.** At 10s apart, every consecutive frame differed.
 - **Intermediate animation frames do not.** With the transition stretched to a 10s
   linear animation, changes clustered at the entry boundaries with dead zeros between

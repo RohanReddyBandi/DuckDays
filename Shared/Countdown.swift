@@ -302,3 +302,108 @@ enum CountdownPhrasing {
         }
     }
 }
+
+/// When a widget redraws, as plain dates and poses, so it can be tested away
+/// from WidgetKit.
+///
+/// **Every plan is capped at `entryCap` entries.** On a tinted or clear home
+/// screen iOS prepares each entry in more than one rendering, and past a limit
+/// it gives up and shows the widget as a grey redacted placeholder instead.
+/// Measured on the simulator (iOS 26.5) with the entry count stamped into the
+/// caption so a fresh render proved itself: 900 entries rendered, 1200 did not,
+/// and 2400 — what motion used to ask for — did not. Full colour coped with
+/// all of them, which is why it went unnoticed. The cap is half the last count
+/// that worked, because a phone prepares these more slowly than a Mac.
+enum WidgetSchedule {
+    static let entryCap = 450
+
+    /// Motion: a dense burst, then a slower tail, rather than one uniform run.
+    /// At 1.5s a step, 450 entries would last eleven minutes and then stop; the
+    /// tail keeps the duck moving for most of an hour inside the same cap.
+    static let denseStep: TimeInterval = 1.5
+    static let denseCount = 300
+    static let tailStep: TimeInterval = 15
+
+    /// Minute precision without motion: one a minute, for an hour.
+    static let minuteStep: TimeInterval = 60
+    static let minuteCount = 60
+
+    /// Inside the last hour a minute countdown shows seconds in 5s steps, so
+    /// entries go exactly on those boundaries.
+    static let closingWindow: TimeInterval = 3600
+
+    /// Room kept for the week of midnight entries a day countdown appends.
+    private static let midnightReserve = 8
+
+    struct Slot: Equatable {
+        let date: Date
+        var phase: Int = 0
+    }
+
+    struct Plan {
+        let slots: [Slot]
+        let refresh: Date
+    }
+
+    static func plan(for event: CountdownEvent, now: Date,
+                     calendar: Calendar = .current) -> Plan {
+        let today = calendar.startOfDay(for: now)
+        let untilTarget = event.date.timeIntervalSince(now)
+        let closingIn = event.precision == .minute
+            && untilTarget > 0 && untilTarget < closingWindow
+
+        var slots: [Slot] = []
+        if closingIn {
+            // Now, then every 5-second boundary before the moment, then on
+            // through the minute NOW holds and a little past it, so counting up
+            // starts on time. Motion rides along on the same entries.
+            slots.append(Slot(date: now))
+            let step = CountdownEvent.displayStep
+            let before = Int((untilTarget / step).rounded(.up))
+            let after = Int((CountdownEvent.arrivalGrace + 30) / step)
+            for k in stride(from: before, through: -after, by: -1) {
+                let boundary = event.date.addingTimeInterval(-Double(k) * step)
+                if boundary > now { slots.append(Slot(date: boundary)) }
+            }
+            slots = Array(slots.prefix(entryCap))
+            if event.motion {
+                slots = slots.enumerated().map { Slot(date: $1.date, phase: $0) }
+            }
+        } else if event.motion {
+            for i in 0..<denseCount {
+                slots.append(Slot(date: now.addingTimeInterval(Double(i) * denseStep),
+                                  phase: i))
+            }
+            let tailStart = now.addingTimeInterval(Double(denseCount) * denseStep)
+            let tailCount = entryCap - denseCount - midnightReserve
+            for j in 0..<tailCount {
+                slots.append(Slot(date: tailStart.addingTimeInterval(Double(j) * tailStep),
+                                  phase: denseCount + j))
+            }
+        } else if event.precision == .minute {
+            for i in 0..<minuteCount {
+                slots.append(Slot(date: now.addingTimeInterval(Double(i) * minuteStep)))
+            }
+        } else {
+            slots.append(Slot(date: now))
+        }
+
+        let lastScheduled = slots.last?.date ?? now
+        if event.precision == .day {
+            for offset in 1...7 {
+                guard let midnight = calendar.date(byAdding: .day, value: offset, to: today),
+                      midnight > lastScheduled else { continue }
+                slots.append(Slot(date: midnight))
+            }
+        }
+
+        let refresh: Date
+        if event.motion || event.precision == .minute {
+            refresh = lastScheduled
+        } else {
+            refresh = calendar.date(byAdding: .day, value: 1, to: today)
+                ?? now.addingTimeInterval(3600)
+        }
+        return Plan(slots: Array(slots.prefix(entryCap)), refresh: refresh)
+    }
+}

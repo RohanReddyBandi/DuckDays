@@ -20,116 +20,17 @@ struct DuckProvider: AppIntentTimelineProvider {
                   event: CountdownStore.event(id: configuration.chosenID))
     }
 
-    /// A second and a half apart, for an hour. Stepping through entries the provider
-    /// already supplied does not spend the reload budget — only calling
-    /// `getTimeline` again does — so density is bought with entry count, not
-    /// with reloads. Keeping the span at an hour holds the cost at 24 reloads a
-    /// day however fine the step gets; only `motionSpan × motionStep` may not
-    /// shrink. Entries are a date, a small struct and an Int, so 2400 of them
-    /// is a few hundred KB across the archive.
-    ///
-    /// Measured on the simulator, every one of these renders. A real device
-    /// applies power management on top and will coalesce them, so treat this as
-    /// the ceiling rather than the guaranteed rate.
-    private static let motionStep: TimeInterval = 1.5
-    private static let motionSpan = 2400
-
-    /// Minute precision without motion still needs an entry a minute, or the
-    /// number sits there stale. An hour of them costs the same one reload as
-    /// the motion timeline does.
-    private static let minuteStep: TimeInterval = 60
-    private static let minuteSpan = 60
-
-    /// Inside the last hour the headline is counting seconds, in the 5-second
-    /// steps `CountdownEvent.remaining` rounds to. Entries go exactly on those
-    /// boundaries — the instants the readout changes — rather than on a fixed
-    /// tick from whenever the timeline happened to be built, which put every
-    /// change up to a tick late.
-    private static let closingWindow: TimeInterval = 3600
-
+    /// The schedule lives in `WidgetSchedule` (Shared/Countdown.swift), where it
+    /// is capped and tested. Stepping through entries the provider already
+    /// supplied does not spend the reload budget — only calling this again does.
     func timeline(for configuration: SelectCountdownIntent,
                   in context: Context) async -> Timeline<DuckEntry> {
         let event = CountdownStore.event(id: configuration.chosenID)
-        let calendar = Calendar.current
-        let now = Date()
-        let today = calendar.startOfDay(for: now)
-
-        // Every entry carries its own date and the scene reads the countdown
-        // from that, so entry density buys text freshness and duck motion at
-        // the same time. Motion is the denser of the two, so it wins when both
-        // are on rather than the two being added together.
-        let untilTarget = event.date.timeIntervalSince(now)
-        let closingIn = event.precision == .minute
-            && untilTarget > 0 && untilTarget < Self.closingWindow
-
-        var entries: [DuckEntry] = []
-        if event.motion {
-            for step in 0..<Self.motionSpan {
-                entries.append(DuckEntry(
-                    date: now.addingTimeInterval(Double(step) * Self.motionStep),
-                    event: event, phase: step))
-            }
-            // Motion entries tick from whenever the timeline was built, so a
-            // 5-second change could land up to a tick late. In the last hour,
-            // add an entry on each boundary as well, carrying the phase of the
-            // motion entry it falls beside so the duck does not jump.
-            if closingIn {
-                let step = CountdownEvent.displayStep
-                let before = Int((untilTarget / step).rounded(.up))
-                let after = Int((CountdownEvent.arrivalGrace + 30) / step)
-                for k in stride(from: before, through: -after, by: -1) {
-                    let boundary = event.date.addingTimeInterval(-Double(k) * step)
-                    guard boundary > now else { continue }
-                    let phase = Int(boundary.timeIntervalSince(now) / Self.motionStep)
-                    guard phase < Self.motionSpan else { continue }
-                    entries.append(DuckEntry(date: boundary, event: event, phase: phase))
-                }
-                entries.sort { $0.date < $1.date }
-            }
-        } else if closingIn {
-            // One entry now, then one at each 5-second boundary before the
-            // moment, then on through the minute "NOW" holds and a little
-            // past it, so counting up starts on time too.
-            entries.append(DuckEntry(date: now, event: event))
-            let step = CountdownEvent.displayStep
-            let before = Int((untilTarget / step).rounded(.up))
-            let after = Int((CountdownEvent.arrivalGrace + 30) / step)
-            for k in stride(from: before, through: -after, by: -1) {
-                let boundary = event.date.addingTimeInterval(-Double(k) * step)
-                if boundary > now {
-                    entries.append(DuckEntry(date: boundary, event: event))
-                }
-            }
-        } else if event.precision == .minute {
-            for step in 0..<Self.minuteSpan {
-                entries.append(DuckEntry(
-                    date: now.addingTimeInterval(Double(step) * Self.minuteStep),
-                    event: event))
-            }
-        } else {
-            entries.append(DuckEntry(date: now, event: event))
+        let plan = WidgetSchedule.plan(for: event, now: Date())
+        let entries = plan.slots.map {
+            DuckEntry(date: $0.date, event: event, phase: $0.phase)
         }
-
-        // One entry per midnight for the next week, so the number ticks over on
-        // its own even if the system is slow to refresh the timeline. Only day
-        // precision needs these; a minute countdown is already reloading hourly.
-        let lastScheduled = entries.last?.date ?? now
-        if event.precision == .day {
-            for offset in 1...7 {
-                guard let midnight = calendar.date(byAdding: .day, value: offset, to: today),
-                      midnight > lastScheduled else { continue }
-                entries.append(DuckEntry(date: midnight, event: event))
-            }
-        }
-
-        let refresh: Date
-        if event.motion || event.precision == .minute || closingIn {
-            refresh = lastScheduled
-        } else {
-            refresh = calendar.date(byAdding: .day, value: 1, to: today)
-                ?? now.addingTimeInterval(3600)
-        }
-        return Timeline(entries: entries, policy: .after(refresh))
+        return Timeline(entries: entries, policy: .after(plan.refresh))
     }
 }
 

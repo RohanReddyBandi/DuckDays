@@ -144,5 +144,42 @@ let stored = #"{"id":"11111111-2222-3333-4444-555555555555","title":"the reunion
 let explicit = try! JSONDecoder().decode(CountdownEvent.self, from: Data(stored.utf8))
 check(explicit.id.uuidString, "11111111-2222-3333-4444-555555555555", "a stored id always wins")
 
+print("\n— widget schedule stays under the tinted-mode cap —")
+func planFor(_ offset: TimeInterval, _ precision: CountdownEvent.Precision, motion: Bool) -> WidgetSchedule.Plan {
+    WidgetSchedule.plan(for: CountdownEvent(title: "x", date: now.addingTimeInterval(offset),
+                                            motion: motion, precision: precision), now: now)
+}
+let cases: [(String, WidgetSchedule.Plan)] = [
+    ("day, motion", planFor(10*day, .day, motion: true)),
+    ("day, still", planFor(10*day, .day, motion: false)),
+    ("minute far, motion", planFor(3*day, .minute, motion: true)),
+    ("minute far, still", planFor(3*day, .minute, motion: false)),
+    ("minute closing 59m, motion", planFor(59*minute, .minute, motion: true)),
+    ("minute closing 59m, still", planFor(59*minute, .minute, motion: false)),
+    ("minute closing 2m, still", planFor(2*minute, .minute, motion: false)),
+]
+for (name, plan) in cases {
+    check(plan.slots.count <= WidgetSchedule.entryCap ? "under" : "\(plan.slots.count)",
+          "under", "\(name): \(plan.slots.count) entries")
+    let sorted = zip(plan.slots, plan.slots.dropFirst()).allSatisfy { $0.date < $1.date }
+    check(sorted ? "ascending" : "out of order", "ascending", "\(name): dates ascend")
+    check(plan.refresh >= plan.slots.first!.date ? "ok" : "refresh before start", "ok",
+          "\(name): refresh not in the past")
+}
+let motionPlan = planFor(10*day, .day, motion: true)
+let motionEnd = motionPlan.slots.filter { $0.phase > 0 }.last!.date.timeIntervalSince(now)
+check(motionEnd > 30*minute ? "most of an hour" : "\(Int(motionEnd))s", "most of an hour",
+      "motion keeps moving past 30 minutes")
+check(Set(motionPlan.slots.map(\.phase)).count > 400 ? "distinct" : "repeats", "distinct",
+      "motion poses keep changing")
+let closing = planFor(2*minute, .minute, motion: false)
+let onBoundaries = closing.slots.dropFirst().allSatisfy {
+    let off = $0.date.timeIntervalSince(closing.slots.last!.date)
+    return abs(off.truncatingRemainder(dividingBy: 5)) < 0.001
+}
+check(onBoundaries ? "on 5s marks" : "off grid", "on 5s marks", "closing entries land on 5s boundaries")
+check(closing.slots.last!.date.timeIntervalSince(now) > 2*minute + 60 ? "past grace" : "stops early",
+      "past grace", "closing plan runs through the NOW minute")
+
 print(failures == 0 ? "\nALL PASS" : "\n\(failures) FAILURE(S)")
 exit(failures == 0 ? 0 : 1)
