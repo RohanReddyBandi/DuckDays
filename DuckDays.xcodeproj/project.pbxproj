@@ -11,14 +11,11 @@
 		D0CC00000000000000000025 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000001A /* ContentView.swift */; };
 		D0CC00000000000000000026 /* DuckStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000022 /* DuckStyle.swift */; };
 		D0CC00000000000000000027 /* Countdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000023 /* Countdown.swift */; };
-		D0CC00000000000000000051 /* CountdownShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000053 /* CountdownShare.swift */; };
 		D0CC00000000000000000028 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000001B /* Assets.xcassets */; };
 		D0CC00000000000000000029 /* DuckWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000001D /* DuckWidgetBundle.swift */; };
 		D0CC0000000000000000002A /* DuckWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000001E /* DuckWidget.swift */; };
 		D0CC0000000000000000002B /* DuckStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000022 /* DuckStyle.swift */; };
 		D0CC0000000000000000002C /* Countdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000023 /* Countdown.swift */; };
-		D0CC0000000000000000004D /* CountdownIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000004E /* CountdownIntent.swift */; };
-		D0CC00000000000000000052 /* CountdownShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000053 /* CountdownShare.swift */; };
 		D0CC0000000000000000002D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000021 /* Assets.xcassets */; };
 		D0CC0000000000000000002E /* DuckWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000007 /* DuckWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D0CC00000000000000000031 /* CountdownCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000032 /* CountdownCard.swift */; };
@@ -29,10 +26,13 @@
 		D0CC0000000000000000003B /* DuckScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000003A /* DuckScene.swift */; };
 		D0CC0000000000000000003C /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000003D /* AppChrome.swift */; };
 		D0CC0000000000000000003E /* Sheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000003F /* Sheets.swift */; };
-		D0CC0000000000000000004A /* AppIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000004B /* AppIcons.swift */; };
-		D0CC0000000000000000004F /* DuckUnlocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000050 /* DuckUnlocks.swift */; };
 		D0CC00000000000000000041 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000040 /* PrivacyInfo.xcprivacy */; };
 		D0CC00000000000000000042 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000040 /* PrivacyInfo.xcprivacy */; };
+		D0CC0000000000000000004A /* AppIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000004B /* AppIcons.swift */; };
+		D0CC0000000000000000004D /* CountdownIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC0000000000000000004E /* CountdownIntent.swift */; };
+		D0CC0000000000000000004F /* DuckUnlocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000050 /* DuckUnlocks.swift */; };
+		D0CC00000000000000000051 /* CountdownShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000053 /* CountdownShare.swift */; };
+		D0CC00000000000000000052 /* CountdownShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0CC00000000000000000053 /* CountdownShare.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,16 +73,16 @@
 		D0CC00000000000000000021 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D0CC00000000000000000022 /* DuckStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuckStyle.swift; sourceTree = "<group>"; };
 		D0CC00000000000000000023 /* Countdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Countdown.swift; sourceTree = "<group>"; };
-		D0CC0000000000000000004E /* CountdownIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownIntent.swift; sourceTree = "<group>"; };
-		D0CC00000000000000000053 /* CountdownShare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownShare.swift; sourceTree = "<group>"; };
 		D0CC00000000000000000032 /* CountdownCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownCard.swift; sourceTree = "<group>"; };
 		D0CC00000000000000000036 /* DuckStyles+Generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DuckStyles+Generated.swift"; sourceTree = "<group>"; };
 		D0CC0000000000000000003A /* DuckScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuckScene.swift; sourceTree = "<group>"; };
 		D0CC0000000000000000003D /* AppChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		D0CC0000000000000000003F /* Sheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sheets.swift; sourceTree = "<group>"; };
-		D0CC0000000000000000004B /* AppIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIcons.swift; sourceTree = "<group>"; };
-		D0CC00000000000000000050 /* DuckUnlocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuckUnlocks.swift; sourceTree = "<group>"; };
 		D0CC00000000000000000040 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D0CC0000000000000000004B /* AppIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIcons.swift; sourceTree = "<group>"; };
+		D0CC0000000000000000004E /* CountdownIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownIntent.swift; sourceTree = "<group>"; };
+		D0CC00000000000000000050 /* DuckUnlocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuckUnlocks.swift; sourceTree = "<group>"; };
+		D0CC00000000000000000053 /* CountdownShare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownShare.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -408,8 +408,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Ribbon AppIcon-Daisy AppIcon-Frosty AppIcon-Cozy AppIcon-Dapper AppIcon-Royal AppIcon-Birthday AppIcon-Angel AppIcon-Sprout AppIcon-Sporty AppIcon-Pirate AppIcon-Chef AppIcon-Wizard AppIcon-Scuba AppIcon-Cowboy AppIcon-Artist AppIcon-Mischief AppIcon-Alien AppIcon-Floaty AppIcon-Whirly AppIcon-Laurel AppIcon-Maple AppIcon-Star";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = DuckDays/DuckDays.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -427,7 +427,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rohanreddybandi.duckdays;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -440,8 +440,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-Ribbon AppIcon-Daisy AppIcon-Frosty AppIcon-Cozy AppIcon-Dapper AppIcon-Royal AppIcon-Birthday AppIcon-Angel AppIcon-Sprout AppIcon-Sporty AppIcon-Pirate AppIcon-Chef AppIcon-Wizard AppIcon-Scuba AppIcon-Cowboy AppIcon-Artist AppIcon-Mischief AppIcon-Alien AppIcon-Floaty AppIcon-Whirly AppIcon-Laurel AppIcon-Maple AppIcon-Star";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = DuckDays/DuckDays.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -459,7 +459,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rohanreddybandi.duckdays;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -486,7 +486,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rohanreddybandi.duckdays.DuckWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -514,7 +514,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.rohanreddybandi.duckdays.DuckWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

@@ -159,10 +159,22 @@ put somebody's "chemo ends" in a GitHub access log.
 
 The link works either way round. With the app installed, iOS offers to open it; the
 page's button hands off to `duckdays://add#<payload>`, the scheme registered in
-`DuckDays/Info.plist`. Without the app, `docs/c/` renders the countdown itself — the
-right duck on its own sky, in its own typeface, with the caption cased the way that
-style cases it — from `docs/ducks/styles.json`, which the forge emits so the page and
-the app cannot disagree about what a duck looks like.
+`DuckDays/Info.plist`. Without the app, `docs/c/` renders the countdown itself.
+
+**Both previews are always the medium widget** — the page, and the card the app shows
+when a link opens it. The page draws it on a canvas from the app's own data rather
+than imitating it in CSS: `docs/ducks/styles.json` carries every duck's sprite grid,
+blink frame and full palette plus the sun, moon, star and wave sprites, emitted by
+`tools/duck_svg.py` from the generated Swift table. The layout numbers are
+`CountdownScene.medium`'s (water at 0.76, duck 0.34 wide at 0.24, the 0.55 counter
+column, type at 0.316 / 0.0962 of the height), and the duck bobs and blinks on the
+app's timings. A CSS imitation was the first version, and it looked wrong — no sun,
+no waves, the wrong duck size. **Change those numbers in Swift, change them in
+`docs/c/index.html` too.**
+
+In the app, the import card gives the scene close to a real medium widget's ~338pt.
+Squeezed to ~286 the sprite grid rounds up a size and the sun and headline crowd the
+duck.
 
 Three things an import deliberately does **not** carry over:
 

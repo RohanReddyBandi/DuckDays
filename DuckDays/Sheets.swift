@@ -571,11 +571,13 @@ struct ImportCard: View {
                     .tracking(2.2)
                     .foregroundStyle(Color(rgb: style.accent))
 
+                // Always the medium widget, matching the shared-link page,
+                // so the countdown looks the same wherever it is received.
                 CountdownScene(event: event, referenceDate: Date(),
-                               size: .small, animated: true)
-                    .aspectRatio(1, contentMode: .fit)
-                    .frame(width: 168, height: 168)
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                               size: .medium, animated: true)
+                    .aspectRatio(338.0 / 158.0, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
                 VStack(spacing: 6) {
                     Text(event.title)
@@ -596,12 +598,16 @@ struct ImportCard: View {
                 }
                 .padding(.top, 2)
             }
-            .padding(26)
+            // Tight sides so the scene gets close to a real medium widget's
+            // width (~338pt). Squeezed to ~286 the sprite grid rounds up and
+            // the sun and headline crowd the duck.
+            .padding(.vertical, 26)
+            .padding(.horizontal, 16)
             .background(RoundedRectangle(cornerRadius: 32, style: .continuous)
                 .fill(Color(rgb: 0x14161D))
                 .overlay(RoundedRectangle(cornerRadius: 32, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)))
-            .padding(.horizontal, 32)
+            .padding(.horizontal, 14)
             .scaleEffect(landed ? 1 : 0.88)
             .opacity(landed ? 1 : 0)
         }

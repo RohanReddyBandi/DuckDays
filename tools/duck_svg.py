@@ -48,6 +48,7 @@ def parse_styles(text):
     for block in text.split("DuckStyle(")[1:]:
         ident = re.search(r'id:\s*"([^"]+)"', block)
         rows = re.search(r"rows:\s*\[(.*?)\]", block, re.S)
+        blink = re.search(r"blinkRows:\s*\[(.*?)\]", block, re.S)
         if not ident or not rows:
             continue
         colors = {k: v for k, v in re.findall(r"(\w+):\s*0x([0-9A-Fa-f]{6})", block)}
@@ -55,6 +56,7 @@ def parse_styles(text):
             "name": re.search(r'name:\s*"([^"]+)"', block).group(1),
             "colors": colors,
             "rows": re.findall(r'"([^"]*)"', rows.group(1)),
+            "blinkRows": re.findall(r'"([^"]*)"', blink.group(1)) if blink else [],
             "font": re.search(r"font:\s*\.(\w+)", block).group(1),
             "upper": re.search(r"uppercaseCaption:\s*(\w+)", block).group(1) == "true",
             "night": re.search(r"night:\s*(\w+)", block).group(1) == "true",
@@ -116,31 +118,56 @@ def skies(styles):
     return "\n".join(lines) + "\n"
 
 
-def metadata(styles):
-    """What the shared-countdown page needs to draw a scene faithfully.
+def parse_decor(text):
+    """The scene sprites (sun, moon, stars, wave tile) from the DuckDecor enum."""
+    body = text[text.index("enum DuckDecor"):]
+    return {name: re.findall(r'"([^"]*)"', grid)
+            for name, grid in re.findall(r"static let (\w+): \[String\] = \[(.*?)\]",
+                                         body, re.S)}
 
-    Emitted rather than hand-copied for the same reason as the skies: the page
-    has to agree with the app about what a duck looks like, and hex typed twice
-    drifts. Only the fields the page actually renders.
+
+def metadata(styles, decor):
+    """Everything the shared-countdown page needs to draw the real widget scene.
+
+    The page draws the medium widget from the same sprite grids and the same
+    palette the app does — duck, blink frame, sun or moon, stars, wave tile —
+    rather than approximating it in CSS. An approximation is what made the
+    first version look wrong. Emitted, never hand-copied, so it cannot drift.
     """
-    return {
-        ident: {
+    def hexed(key, s):
+        return "#" + s["colors"][key].upper()
+
+    out = {}
+    for ident, s in sorted(styles.items()):
+        palette = dict(FIXED)
+        for token, field in FIELDS.items():
+            palette[token] = hexed(field, s)
+        # The reflection pixels are wanted here: this page draws a pond. Same
+        # colour as DuckStyle.color(for: "g").
+        palette["g"] = hexed("waterDeep", s)
+        out[ident] = {
             "name": s["name"],
-            "ink": "#" + s["colors"]["ink"].upper(),
-            "skyTop": "#" + s["colors"]["bgTop"].upper(),
-            "skyBottom": "#" + s["colors"]["bgBottom"].upper(),
-            "water": "#" + s["colors"]["water"].upper(),
-            "waterDeep": "#" + s["colors"]["waterDeep"].upper(),
             "font": s["font"],
             "upper": s["upper"],
+            "night": s["night"],
+            "ink": hexed("ink", s),
+            "skyTop": hexed("bgTop", s),
+            "skyBottom": hexed("bgBottom", s),
+            "water": hexed("water", s),
+            "waterDeep": hexed("waterDeep", s),
+            "palette": palette,
+            "rows": s["rows"],
+            "blinkRows": s["blinkRows"],
         }
-        for ident, s in sorted(styles.items())
-    }
+    keep = ("sun", "moon", "star", "starBig", "wave")
+    return {"styles": out, "decor": {k: decor[k] for k in keep}}
 
 
 def main():
     with open(TABLE, encoding="utf-8") as handle:
-        styles = parse_styles(handle.read())
+        table = handle.read()
+    styles = parse_styles(table)
+    decor = parse_decor(table)
 
     missing = [i for i in FEATURED if i not in styles]
     if missing:
@@ -160,7 +187,7 @@ def main():
 
     path = os.path.join(OUT, "styles.json")
     with open(path, "w", encoding="utf-8") as handle:
-        json.dump(metadata(styles), handle, indent=1, sort_keys=True)
+        json.dump(metadata(styles, decor), handle, separators=(",", ":"), sort_keys=True)
     print(f"{os.path.relpath(path, ROOT)}  {len(styles)} styles")
 
 
