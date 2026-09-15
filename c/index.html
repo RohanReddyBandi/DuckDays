@@ -153,15 +153,30 @@
     return n === 1 ? "1 Day" : n + " Days";
   }
 
-  function minuteHeadline(ms) {
-    var total = Math.floor(Math.abs(ms) / 1000);
+  // Same rules as CountdownEvent.remaining: 5-second steps, rounded up while
+  // counting down and down once past, and held at zero for the first minute
+  // after the moment before counting up begins.
+  var STEP = 5, GRACE = 60;
+  function stepped(ms) {
+    var raw = ms / 1000;
+    if (raw <= 0 && raw > -GRACE) { return { total: 0, past: false }; }
+    var steps = raw > 0 ? Math.ceil((raw - 0.01) / STEP)
+                        : Math.floor((-raw + 0.01) / STEP);
+    return { total: steps * STEP, past: raw < 0 };
+  }
+
+  // A smaller unit that reads zero is dropped: "1 Min", not "1 Min 0 Sec".
+  function minuteHeadline(total) {
     var d = Math.floor(total / 86400);
     var h = Math.floor((total % 86400) / 3600);
     var m = Math.floor((total % 3600) / 60);
     var sec = total % 60;
     if (d > 0) { return d === 1 ? "1 Day" : d + " Days"; }
-    if (h > 0) { return h + " " + (h === 1 ? "Hr" : "Hrs") + " " + m + " Min"; }
-    if (m > 0) { return m + " Min " + sec + " Sec"; }
+    if (h > 0) {
+      var hours = h + " " + (h === 1 ? "Hr" : "Hrs");
+      return m === 0 ? hours : hours + " " + m + " Min";
+    }
+    if (m > 0) { return sec === 0 ? m + " Min" : m + " Min " + sec + " Sec"; }
     if (sec > 0) { return sec + " Sec"; }
     return "NOW";
   }
@@ -173,9 +188,10 @@
     var minute = wire.p === "min";
 
     var days = Math.round((startOfDay(target) - startOfDay(now)) / 86400000);
-    var head = minute ? minuteHeadline(target - now) : dayHeadline(days);
-    var arrived = minute ? head === "NOW" : days === 0;
-    var past = minute ? target < now : days < 0;
+    var left = stepped(target - now);
+    var head = minute ? minuteHeadline(left.total) : dayHeadline(days);
+    var arrived = minute ? left.total === 0 : days === 0;
+    var past = minute ? left.past : days < 0;
     var tail = arrived ? "it's " + wire.t + "!"
                        : (past ? "since " + wire.t : "until " + wire.t);
 
