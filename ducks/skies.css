@@ -12,6 +12,7 @@
 .sky-corsair { --sky-top: #16323C; --sky-bottom: #2F5C63; }
 .sky-cosmos { --sky-top: #0D1030; --sky-bottom: #2B2F6B; }
 .sky-ember { --sky-top: #3B0F14; --sky-bottom: #7A2320; }
+.sky-gobble { --sky-top: #B8551F; --sky-bottom: #EFC184; }
 .sky-harvest { --sky-top: #E8B563; --sky-bottom: #F7E0B0; }
 .sky-kitchen { --sky-top: #F5EDE0; --sky-bottom: #E8DBC6; }
 .sky-lagoon { --sky-top: #36C9D6; --sky-bottom: #9BEDF2; }
@@ -19,9 +20,14 @@
 .sky-midnight { --sky-top: #1B1B3A; --sky-bottom: #40356E; }
 .sky-mint { --sky-top: #2E5E52; --sky-bottom: #5C9A85; }
 .sky-moss { --sky-top: #2F4A2E; --sky-bottom: #5E8A55; }
+.sky-newyear { --sky-top: #070B2E; --sky-bottom: #2A1C6B; }
 .sky-olive { --sky-top: #3A4227; --sky-bottom: #6B7A45; }
 .sky-prairie { --sky-top: #E39B5C; --sky-bottom: #F5D3A8; }
 .sky-reef { --sky-top: #1E7A8C; --sky-bottom: #63C6D6; }
 .sky-royal { --sky-top: #3B1E6B; --sky-bottom: #6E45A8; }
+.sky-seaside { --sky-top: #FF8A5C; --sky-bottom: #FFD98A; }
+.sky-snowday { --sky-top: #8FB6D9; --sky-bottom: #E2EEF8; }
 .sky-starlight { --sky-top: #1A1230; --sky-bottom: #4A3570; }
 .sky-sunny { --sky-top: #58C0EE; --sky-bottom: #A8E4FB; }
+.sky-sweetheart { --sky-top: #FFD0DF; --sky-bottom: #FFF2F6; }
+.sky-yule { --sky-top: #0E2A47; --sky-bottom: #2F6088; }
